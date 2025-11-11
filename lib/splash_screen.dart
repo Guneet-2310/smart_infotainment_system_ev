@@ -2,7 +2,7 @@
 import 'dart:async';
 import 'package:ev_smart_screen/main_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:loading_indicator/loading_indicator.dart'; // Import the new package
+// We no longer need the loading_indicator package here
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -19,7 +19,7 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   startTimer() {
-    // Wait for 3-4 seconds, then navigate
+    // Wait for 4 seconds, then navigate
     var duration = const Duration(seconds: 4);
     return Timer(duration, navigateToHome);
   }
@@ -34,39 +34,22 @@ class _SplashScreenState extends State<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Get the total screen size
-    final screenSize = MediaQuery.of(context).size;
-
+    // This is the new, simple build method.
     return Scaffold(
-      // Use the dark background color from main.dart
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: Center(
-        // This box constrains the content as you requested
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxWidth: screenSize.width * 0.5, // Not more than 50% width
-            maxHeight: screenSize.height * 0.5, // Not more than 50% height
-          ),
-          child: Column(
-            mainAxisSize:
-                MainAxisSize.min, // Make column only as tall as its children
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // 1. Your BMU Image
-              Image.asset('assets/images/bmu.png'),
 
-              const SizedBox(height: 32), // Space between image and loader
-              // 2. The progressive dots loader
-              const SizedBox(
-                width: 100, // Give the loader a set width
-                child: LoadingIndicator(
-                  // This is a nice progressive dot-style animation
-                  indicatorType: Indicator.lineScaleParty,
-                  colors: [Colors.blueAccent],
-                ),
-              ),
-            ],
-          ),
+      // Center widget will center its child horizontally and vertically.
+      body: Center(
+        child: Image.asset(
+          'assets/images/bmu.png',
+
+          // We constrain the HEIGHT to 50% of the screen.
+          // This will prevent all vertical overflow errors.
+          // The image's width will scale down automatically.
+          height: MediaQuery.of(context).size.height * 0.5,
+
+          // This ensures the image scales down nicely within the box
+          fit: BoxFit.contain,
         ),
       ),
     );

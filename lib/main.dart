@@ -16,9 +16,7 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false, // Hides the "debug" banner
       theme: ThemeData.dark().copyWith(
         // Using a dark theme as a base for an EV screen
-        scaffoldBackgroundColor: const Color(
-          0xFF1E1E1E,
-        ), // A dark grey background
+        scaffoldBackgroundColor: const Color(0xFF0F1B2B),
         primaryColor: Colors.blueAccent,
       ),
       home: const SplashScreen(), // This is the first screen the user sees
