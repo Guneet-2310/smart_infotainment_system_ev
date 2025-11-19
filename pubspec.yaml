@@ -14,6 +14,10 @@ dependencies:
   syncfusion_flutter_gauges: ^31.2.5
   fl_chart: ^0.68.0
   cupertino_icons: ^1.0.8
+  web_socket_channel: ^2.4.0  # WebSocket for backend communication
+  flutter_map: ^7.0.2  # Open-source map widget
+  latlong2: ^0.9.1  # Latitude/Longitude handling
+  http: ^1.1.0  # HTTP requests for geocoding and routing
 
 dev_dependencies:
   flutter_test:

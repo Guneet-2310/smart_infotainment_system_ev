@@ -69,7 +69,7 @@ class _SettingsViewState extends State<SettingsView> {
             child: Padding(
               padding: const EdgeInsets.all(20.0),
               child: Text(
-                "Developed by Prakhar Srivastava.",
+                "Developed by Guneet Chawla.",
                 style: TextStyle(
                   color: Colors.white.withOpacity(0.3),
                   fontSize: 12,

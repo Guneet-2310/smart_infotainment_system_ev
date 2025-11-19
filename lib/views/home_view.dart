@@ -2,12 +2,18 @@
 import 'package:flutter/material.dart';
 import 'dart:async'; // For the real-time clock
 import 'package:intl/intl.dart'; // For formatting the time and date
+import 'package:ev_smart_screen/services/backend_service.dart'; // Backend service
+import 'package:ev_smart_screen/services/notification_service.dart'; // Notification service
+import 'package:flutter_map/flutter_map.dart'; // Map widget
+import 'package:latlong2/latlong.dart'; // GPS coordinates
+import 'package:ev_smart_screen/views/map_view.dart'; // Map view
 
 class HomeView extends StatefulWidget {
   const HomeView({super.key});
 
-  // Your requested API key
-  static const String mapsApiKey = "random_api_token_here";
+  // Mapbox API key (already configured in backend)
+  static const String mapsApiKey =
+      "sk.eyJ1IjoiZ3VuZWV0MjMiLCJhIjoiY21odmtydjZ0MDNqcjJyczZhMXdhNHNpMyJ9.sHv3GJEK08yb08QnNTTiZg";
 
   @override
   State<HomeView> createState() => _HomeViewState();
@@ -18,6 +24,18 @@ class _HomeViewState extends State<HomeView> {
   String _currentTime = '';
   late Timer _timer;
 
+  // Backend service
+  final BackendService _backend = BackendService();
+  Map<String, dynamic> _telemetry = {}; // Real-time data from backend
+  bool _isConnected = false;
+
+  // Notification service
+  final NotificationService _notificationService = NotificationService();
+  int _unreadNotifications = 0;
+
+  // Volume state
+  double _volume = 0.7; // Current volume level
+
   @override
   void initState() {
     super.initState();
@@ -27,12 +45,82 @@ class _HomeViewState extends State<HomeView> {
       const Duration(seconds: 1),
       (Timer t) => _updateDateTime(),
     );
+
+    // Connect to backend
+    _connectToBackend();
   }
 
   @override
   void dispose() {
     _timer.cancel(); // Stop the timer when the widget is removed
+    _backend.dispose(); // Disconnect from backend
+    _notificationService.dispose(); // Dispose notification service
     super.dispose();
+  }
+
+  /// Show toast notification
+  void _showToastNotification(AppNotification notification) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(notification.icon, color: Colors.white),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    notification.title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                  Text(
+                    notification.message,
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: notification.color.withOpacity(0.9),
+        duration: const Duration(seconds: 4),
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(16),
+      ),
+    );
+  }
+
+  /// Connect to backend and listen for telemetry data
+  Future<void> _connectToBackend() async {
+    await _backend.connect();
+
+    // Listen for telemetry updates
+    _backend.telemetryStream.listen((data) {
+      setState(() {
+        _telemetry = data;
+        _isConnected = true;
+
+        // Check for notifications
+        _notificationService.checkTelemetry(data);
+      });
+    });
+
+    // Listen for new notifications
+    _notificationService.notificationStream.listen((notification) {
+      setState(() {
+        _unreadNotifications = _notificationService.unreadCount;
+      });
+
+      // Show toast notification
+      _showToastNotification(notification);
+    });
   }
 
   void _updateDateTime() {
@@ -41,6 +129,21 @@ class _HomeViewState extends State<HomeView> {
       _currentDate = DateFormat('EEE MMM d').format(now); // e.g., "Wed Jul 9"
       _currentTime = DateFormat('HH:mm').format(now); // e.g., "05:43"
     });
+  }
+
+  /// Calculate media playback progress (0.0 to 1.0)
+  double _calculateProgress() {
+    final duration = _telemetry['media']?['duration'] ?? 1;
+    final position = _telemetry['media']?['position'] ?? 0;
+    if (duration == 0) return 0.0;
+    return (position / duration).clamp(0.0, 1.0);
+  }
+
+  /// Format time in MM:SS format
+  String _formatTime(int seconds) {
+    final minutes = seconds ~/ 60;
+    final secs = seconds % 60;
+    return '${minutes.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
   }
 
   @override
@@ -74,21 +177,218 @@ class _HomeViewState extends State<HomeView> {
   // lib/views/home_view.dart
 
   Widget _buildTopBar() {
+    // Get connectivity status from backend
+    final wifiConnected = _telemetry['connectivity']?['wifi'] ?? false;
+    final bluetoothConnected =
+        _telemetry['connectivity']?['bluetooth'] ?? false;
+
     return Align(
       alignment: Alignment.topLeft, // Align to top-left
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
         child: Row(
-          // This is the only change: .end is now .start
           mainAxisAlignment: MainAxisAlignment.start,
-          children: const [
-            Icon(Icons.wifi, color: Colors.white, size: 24),
-            SizedBox(width: 16),
-            Icon(Icons.bluetooth, color: Colors.white, size: 24),
+          children: [
+            // Backend connection status
+            Icon(
+              _isConnected ? Icons.cloud_done : Icons.cloud_off,
+              color: _isConnected ? Colors.greenAccent : Colors.redAccent,
+              size: 24,
+            ),
+            const SizedBox(width: 16),
+            // WiFi status
+            Icon(
+              Icons.wifi,
+              color: wifiConnected ? Colors.white : Colors.white30,
+              size: 24,
+            ),
+            const SizedBox(width: 16),
+            // Bluetooth status
+            Icon(
+              Icons.bluetooth,
+              color: bluetoothConnected ? Colors.blueAccent : Colors.white30,
+              size: 24,
+            ),
+            const SizedBox(width: 16),
+            // Notification bell
+            GestureDetector(
+              onTap: () {
+                _showNotificationPanel();
+              },
+              child: Stack(
+                children: [
+                  const Icon(
+                    Icons.notifications,
+                    color: Colors.white,
+                    size: 24,
+                  ),
+                  if (_unreadNotifications > 0)
+                    Positioned(
+                      right: 0,
+                      top: 0,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: Colors.redAccent,
+                          shape: BoxShape.circle,
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 16,
+                          minHeight: 16,
+                        ),
+                        child: Text(
+                          _unreadNotifications > 9
+                              ? '9+'
+                              : '$_unreadNotifications',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
           ],
         ),
       ),
     );
+  }
+
+  /// Show notification panel
+  void _showNotificationPanel() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.7,
+        decoration: BoxDecoration(
+          color: const Color(0xFF0F1B2B),
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(20),
+            topRight: Radius.circular(20),
+          ),
+        ),
+        child: Column(
+          children: [
+            // Header
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Notifications',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      setState(() {
+                        _notificationService.markAllAsRead();
+                        _unreadNotifications = 0;
+                      });
+                    },
+                    child: const Text('Mark all read'),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(color: Colors.white24, height: 1),
+            // Notification list
+            Expanded(
+              child: _notificationService.notifications.isEmpty
+                  ? const Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.notifications_none,
+                            size: 64,
+                            color: Colors.white24,
+                          ),
+                          SizedBox(height: 16),
+                          Text(
+                            'No notifications',
+                            style: TextStyle(color: Colors.white54),
+                          ),
+                        ],
+                      ),
+                    )
+                  : ListView.builder(
+                      itemCount: _notificationService.notifications.length,
+                      itemBuilder: (context, index) {
+                        final notification =
+                            _notificationService.notifications[index];
+                        return ListTile(
+                          leading: Icon(
+                            notification.icon,
+                            color: notification.color,
+                          ),
+                          title: Text(
+                            notification.title,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: notification.isRead
+                                  ? FontWeight.normal
+                                  : FontWeight.bold,
+                            ),
+                          ),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                notification.message,
+                                style: const TextStyle(color: Colors.white70),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                _formatTimestamp(notification.timestamp),
+                                style: const TextStyle(
+                                  color: Colors.white38,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                          onTap: () {
+                            setState(() {
+                              _notificationService.markAsRead(notification.id);
+                              _unreadNotifications =
+                                  _notificationService.unreadCount;
+                            });
+                          },
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Format timestamp for notification
+  String _formatTimestamp(DateTime timestamp) {
+    final now = DateTime.now();
+    final difference = now.difference(timestamp);
+
+    if (difference.inSeconds < 60) {
+      return 'Just now';
+    } else if (difference.inMinutes < 60) {
+      return '${difference.inMinutes}m ago';
+    } else if (difference.inHours < 24) {
+      return '${difference.inHours}h ago';
+    } else {
+      return '${difference.inDays}d ago';
+    }
   }
 
   Widget _buildLeftColumn() {
@@ -143,22 +443,27 @@ class _HomeViewState extends State<HomeView> {
   }
 
   Widget _buildEvMetricsRow() {
+    // Get real-time data from backend
+    final speed = _telemetry['speed']?.toStringAsFixed(0) ?? '--';
+    final range = _telemetry['range_km']?.toStringAsFixed(0) ?? '--';
+    final battery = _telemetry['battery_soc']?.toStringAsFixed(0) ?? '--';
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       decoration: BoxDecoration(
         color: Colors.black.withOpacity(0.4), // Dark background for the row
         borderRadius: BorderRadius.circular(16),
       ),
-      child: const Row(
+      child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          // Metric: Speed
-          _EvMetricItem(value: "88", unit: "km/h", label: "Speed"),
-          // Metric: Range
-          _EvMetricItem(value: "320", unit: "km", label: "Range"),
-          // Metric: Battery (SoC)
+          // Metric: Speed (real-time from backend)
+          _EvMetricItem(value: speed, unit: "km/h", label: "Speed"),
+          // Metric: Range (real-time from backend)
+          _EvMetricItem(value: range, unit: "km", label: "Range"),
+          // Metric: Battery (real-time from backend)
           _EvMetricItem(
-            value: "75%",
+            value: "$battery%",
             label: "Battery",
             iconColor: Colors.greenAccent,
           ),
@@ -170,38 +475,73 @@ class _HomeViewState extends State<HomeView> {
   // lib/views/home_view.dart
 
   Widget _buildMapPlaceholder() {
+    // Get GPS coordinates from telemetry
+    final gps = _telemetry['gps'];
+    final lat = gps?['latitude']?.toDouble() ?? 28.4595;
+    final lon = gps?['longitude']?.toDouble() ?? 77.0266;
+    final vehiclePosition = LatLng(lat, lon);
+
     return Expanded(
       child: Container(
-        // Map placeholder will take remaining space
         margin: const EdgeInsets.fromLTRB(0, 16, 16, 16),
         decoration: BoxDecoration(
-          color: Colors.grey[900], // Map background
-          borderRadius: BorderRadius.circular(20), // Rounded corners
+          color: Colors.grey[900],
+          borderRadius: BorderRadius.circular(20),
         ),
+        clipBehavior: Clip.antiAlias,
         child: Stack(
           children: [
-            Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.map, color: Colors.white24, size: 100),
-                  const SizedBox(height: 20),
-                  Text(
-                    'Map API Placeholder\n(Using API Key: ${HomeView.mapsApiKey})',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(color: Colors.white24, fontSize: 20),
-                  ),
-                ],
+            // Real map widget
+            FlutterMap(
+              options: MapOptions(
+                initialCenter: vehiclePosition,
+                initialZoom: 14.0,
+                interactionOptions: const InteractionOptions(
+                  flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+                ),
               ),
+              children: [
+                TileLayer(
+                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                  userAgentPackageName: 'com.bmu.ev_smart_screen',
+                ),
+                MarkerLayer(
+                  markers: [
+                    Marker(
+                      point: vehiclePosition,
+                      width: 40,
+                      height: 40,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.blueAccent.withOpacity(0.3),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.navigation,
+                          color: Colors.blueAccent,
+                          size: 24,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
 
-            // Placeholder Search Bar
-            Align(
-              alignment: Alignment.topCenter,
-              child: Padding(
-                padding: const EdgeInsets.all(20.0),
+            // Search bar overlay
+            Positioned(
+              top: 20,
+              left: 20,
+              right: 20,
+              child: GestureDetector(
+                onTap: () {
+                  // Navigate to full map view
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const MapView()),
+                  );
+                },
                 child: Container(
-                  width: MediaQuery.of(context).size.width * 0.4,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 16,
                     vertical: 12,
@@ -210,8 +550,8 @@ class _HomeViewState extends State<HomeView> {
                     color: Colors.black.withOpacity(0.7),
                     borderRadius: BorderRadius.circular(30),
                   ),
-                  child: Row(
-                    children: const [
+                  child: const Row(
+                    children: [
                       Icon(Icons.search, color: Colors.white70),
                       SizedBox(width: 10),
                       Text(
@@ -223,11 +563,12 @@ class _HomeViewState extends State<HomeView> {
                 ),
               ),
             ),
+
+            // Map controls
             Positioned(
-              bottom: 20, // 20 pixels from the bottom
-              right: 20, // 20 pixels from the right
+              bottom: 20,
+              right: 20,
               child: Container(
-                // The margin is no longer needed
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: Colors.black.withOpacity(0.7),
@@ -235,16 +576,25 @@ class _HomeViewState extends State<HomeView> {
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
-                  children: const [
-                    Icon(Icons.add, color: Colors.white),
-                    SizedBox(height: 10),
-                    Icon(Icons.remove, color: Colors.white),
-                    Divider(color: Colors.white24, height: 20),
-                    Icon(Icons.my_location, color: Colors.blueAccent),
-                    SizedBox(height: 10),
-                    Icon(Icons.traffic, color: Colors.white),
-                    SizedBox(height: 10),
-                    Icon(Icons.threed_rotation, color: Colors.white),
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.fullscreen, color: Colors.white),
+                      onPressed: () {
+                        // Navigate to full map view
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const MapView(),
+                          ),
+                        );
+                      },
+                      tooltip: 'Full screen map',
+                    ),
+                    const Icon(
+                      Icons.my_location,
+                      color: Colors.blueAccent,
+                      size: 20,
+                    ),
                   ],
                 ),
               ),
@@ -275,15 +625,18 @@ class _HomeViewState extends State<HomeView> {
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
+                  children: [
                     Text(
-                      "Song Name",
-                      style: TextStyle(color: Colors.white, fontSize: 18),
+                      _telemetry['media']?['track_title'] ?? "No Track Playing",
+                      style: const TextStyle(color: Colors.white, fontSize: 18),
                       overflow: TextOverflow.ellipsis,
                     ),
                     Text(
-                      "Artist Name / Station", // Placeholder for artist/station
-                      style: TextStyle(color: Colors.white70, fontSize: 14),
+                      _telemetry['media']?['track_artist'] ?? "Unknown Artist",
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 14,
+                      ),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ],
@@ -293,21 +646,21 @@ class _HomeViewState extends State<HomeView> {
           ),
           const SizedBox(height: 20),
 
-          // Playback progress bar
+          // Playback progress bar (LIVE)
           LinearProgressIndicator(
-            value: 0.5, // Example progress
+            value: _calculateProgress(),
             backgroundColor: Colors.white24,
-            valueColor: AlwaysStoppedAnimation<Color>(Colors.blueAccent),
+            valueColor: const AlwaysStoppedAnimation<Color>(Colors.blueAccent),
             minHeight: 4,
             borderRadius: BorderRadius.circular(2),
           ),
           const SizedBox(height: 5),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: const [
+            children: [
               Text(
-                '00:56',
-                style: TextStyle(color: Colors.white70, fontSize: 12),
+                _formatTime(_telemetry['media']?['position'] ?? 0),
+                style: const TextStyle(color: Colors.white70, fontSize: 12),
               ),
               Text(
                 '-01:20',
@@ -321,23 +674,50 @@ class _HomeViewState extends State<HomeView> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              const Icon(
-                Icons.star_border,
-                color: Colors.white70,
-                size: 28,
-              ), // Favorite
-              const Icon(Icons.skip_previous, color: Colors.white, size: 38),
-              const Icon(
-                Icons.play_arrow,
-                color: Colors.blueAccent,
-                size: 50,
-              ), // Play/Pause
-              const Icon(Icons.skip_next, color: Colors.white, size: 38),
-              const Icon(
-                Icons.volume_up,
-                color: Colors.white70,
-                size: 28,
-              ), // Volume icon
+              IconButton(
+                icon: const Icon(
+                  Icons.star_border,
+                  color: Colors.white70,
+                  size: 28,
+                ),
+                onPressed: () {
+                  // Favorite functionality
+                },
+              ),
+              IconButton(
+                icon: const Icon(
+                  Icons.skip_previous,
+                  color: Colors.white,
+                  size: 38,
+                ),
+                onPressed: () => _backend.previousTrack(), // Backend command
+              ),
+              IconButton(
+                icon: Icon(
+                  _telemetry['media']?['is_playing'] == true
+                      ? Icons.pause
+                      : Icons.play_arrow,
+                  color: Colors.blueAccent,
+                  size: 50,
+                ),
+                onPressed: () {
+                  // Toggle play/pause
+                  if (_telemetry['media']?['is_playing'] == true) {
+                    _backend.pauseMusic();
+                  } else {
+                    _backend.playMusic();
+                  }
+                },
+              ),
+              IconButton(
+                icon: const Icon(
+                  Icons.skip_next,
+                  color: Colors.white,
+                  size: 38,
+                ),
+                onPressed: () => _backend.nextTrack(), // Backend command
+              ),
+              const Icon(Icons.volume_up, color: Colors.white70, size: 28),
             ],
           ),
           const SizedBox(height: 10),
@@ -348,9 +728,12 @@ class _HomeViewState extends State<HomeView> {
               overlayShape: const RoundSliderOverlayShape(overlayRadius: 16.0),
             ),
             child: Slider(
-              value: 0.7, // Placeholder value
+              value: _volume, // Dynamic volume level
               onChanged: (newValue) {
-                // Handle volume change
+                setState(() {
+                  _volume = newValue; // Update UI immediately
+                });
+                _backend.setVolume(newValue); // Send to backend
               },
               activeColor: Colors.blueAccent,
               inactiveColor: Colors.white30,

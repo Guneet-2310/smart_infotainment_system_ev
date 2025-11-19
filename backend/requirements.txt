@@ -1,0 +1,27 @@
+# EV Smart Screen Backend - Python Dependencies
+# Phase 1 Prototype
+
+# Core async and WebSocket support
+websockets>=12.0
+asyncio-mqtt>=0.16.1
+
+# MQTT Cloud connectivity
+paho-mqtt>=1.6.1
+
+# Raspberry Pi Hardware (only needed on Pi)
+# These will fail gracefully on Windows
+adafruit-circuitpython-dht>=3.7.0
+adafruit-blinka>=8.20.0
+# python-can>=4.2.0  # Commented out - CAN bus not available yet
+
+# GPIO support (Raspberry Pi)
+# gpiod>=2.0.0  # Uncomment when GPIO features are needed
+
+# Bluetooth support (optional, for advanced features)
+# pybluez>=0.23  # Uncomment for Bluetooth functionality
+
+# GPS support (optional)
+# gpsd-py3>=0.3.0  # Uncomment for GPS module support
+
+# Utilities
+python-dateutil>=2.8.2
