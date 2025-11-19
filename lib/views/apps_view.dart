@@ -2,6 +2,10 @@
 import 'package:ev_smart_screen/views/map_view.dart';
 import 'package:ev_smart_screen/views/settings_view.dart';
 import 'package:ev_smart_screen/views/stats_view.dart';
+import 'package:ev_smart_screen/views/battery_view.dart';
+import 'package:ev_smart_screen/views/motor_view.dart';
+import 'package:ev_smart_screen/views/systems_view.dart';
+import 'package:ev_smart_screen/views/tyre_pms_view.dart';
 import 'package:flutter/material.dart';
 
 // A simple class to hold our app info
@@ -32,30 +36,42 @@ class AppsView extends StatelessWidget {
         icon: Icons.settings,
         page: const SettingsView(),
       ),
+      // Newly integrated functional views
+      AppItem(
+        title: 'Battery',
+        icon: Icons.battery_full,
+        page: const BatteryView(),
+      ),
+      AppItem(
+        title: 'Motor',
+        icon: Icons.electric_bolt,
+        page: const MotorView(),
+      ),
+      AppItem(
+        title: 'Vehicle Systems',
+        icon: Icons.car_crash,
+        page: const SystemsView(),
+      ),
+      AppItem(
+        title: 'Tyre Pressure',
+        icon: Icons.tire_repair,
+        page: const TyrePmsView(),
+      ),
+      // Placeholders (still in progress)
       AppItem(
         title: 'Music',
         icon: Icons.music_note,
-        page: const PlaceholderPage(title: 'Music App'), // Placeholder
+        page: const PlaceholderPage(title: 'Music App'),
       ),
       AppItem(
         title: 'Weather',
         icon: Icons.cloud,
-        page: const PlaceholderPage(title: 'Weather App'), // Placeholder
-      ),
-      AppItem(
-        title: 'Tire Pressure',
-        icon: Icons.tire_repair,
-        page: const PlaceholderPage(title: 'Tire Pressure App'), // Placeholder
-      ),
-      AppItem(
-        title: 'Battery',
-        icon: Icons.battery_full,
-        page: const PlaceholderPage(title: 'Battery App'), // Placeholder
+        page: const PlaceholderPage(title: 'Weather App'),
       ),
       AppItem(
         title: 'Connectivity',
         icon: Icons.wifi,
-        page: const PlaceholderPage(title: 'Connectivity App'), // Placeholder
+        page: const PlaceholderPage(title: 'Connectivity App'),
       ),
     ];
 
@@ -113,7 +129,7 @@ class _AppIcon extends StatelessWidget {
       borderRadius: BorderRadius.circular(20),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.4),
+          color: Colors.black.withValues(alpha: 0.4),
           borderRadius: BorderRadius.circular(20),
         ),
         child: Column(

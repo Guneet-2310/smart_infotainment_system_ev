@@ -18,6 +18,7 @@ dependencies:
   flutter_map: ^7.0.2  # Open-source map widget
   latlong2: ^0.9.1  # Latitude/Longitude handling
   http: ^1.1.0  # HTTP requests for geocoding and routing
+  flutter_dotenv: ^5.1.0  # Load environment variables from .env
 
 dev_dependencies:
   flutter_test:
@@ -30,3 +31,4 @@ flutter:
 
   assets:
     - assets/images/
+    - .env

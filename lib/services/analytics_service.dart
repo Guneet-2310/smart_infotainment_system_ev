@@ -36,9 +36,7 @@ class AnalyticsService {
     }
 
     // Update trip statistics
-    if (_tripStartTime == null) {
-      _tripStartTime = timestamp;
-    }
+    _tripStartTime ??= timestamp;
 
     // Calculate distance (speed * time interval)
     if (_dataPoints.length > 1) {

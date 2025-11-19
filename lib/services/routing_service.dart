@@ -200,17 +200,17 @@ class RouteStep {
     final modifier = maneuverData['modifier'] ?? '';
 
     if (type == 'depart') {
-      instruction = 'Head ${modifier}';
+      instruction = 'Head $modifier';
     } else if (type == 'arrive') {
       instruction = 'Arrive at destination';
     } else if (type == 'turn') {
-      instruction = 'Turn ${modifier}';
+      instruction = 'Turn $modifier';
     } else if (type == 'merge') {
-      instruction = 'Merge ${modifier}';
+      instruction = 'Merge $modifier';
     } else if (type == 'roundabout') {
       instruction = 'Take roundabout';
     } else {
-      instruction = 'Continue ${modifier}';
+      instruction = 'Continue $modifier';
     }
 
     // Add street name if available

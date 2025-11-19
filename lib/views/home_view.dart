@@ -7,13 +7,15 @@ import 'package:ev_smart_screen/services/notification_service.dart'; // Notifica
 import 'package:flutter_map/flutter_map.dart'; // Map widget
 import 'package:latlong2/latlong.dart'; // GPS coordinates
 import 'package:ev_smart_screen/views/map_view.dart'; // Map view
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class HomeView extends StatefulWidget {
   const HomeView({super.key});
 
-  // Mapbox API key (already configured in backend)
-  static const String mapsApiKey =
-      "sk.eyJ1IjoiZ3VuZWV0MjMiLCJhIjoiY21odmtydjZ0MDNqcjJyczZhMXdhNHNpMyJ9.sHv3GJEK08yb08QnNTTiZg";
+  // Mapbox API key loaded from .env (MAPS_API_KEY)
+  static String get mapsApiKey => dotenv.env['MAPS_API_KEY'] ?? '';
+
+
 
   @override
   State<HomeView> createState() => _HomeViewState();
@@ -89,7 +91,7 @@ class _HomeViewState extends State<HomeView> {
             ),
           ],
         ),
-        backgroundColor: notification.color.withOpacity(0.9),
+        backgroundColor: notification.color.withValues(alpha: 0.9),
         duration: const Duration(seconds: 4),
         behavior: SnackBarBehavior.floating,
         margin: const EdgeInsets.all(16),
@@ -451,7 +453,7 @@ class _HomeViewState extends State<HomeView> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.4), // Dark background for the row
+        color: Colors.black.withValues(alpha: 0.4), // Dark background for the row
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
@@ -513,7 +515,7 @@ class _HomeViewState extends State<HomeView> {
                       height: 40,
                       child: Container(
                         decoration: BoxDecoration(
-                          color: Colors.blueAccent.withOpacity(0.3),
+                          color: Colors.blueAccent.withValues(alpha: 0.3),
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(
@@ -547,7 +549,7 @@ class _HomeViewState extends State<HomeView> {
                     vertical: 12,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.7),
+                    color: Colors.black.withValues(alpha: 0.7),
                     borderRadius: BorderRadius.circular(30),
                   ),
                   child: const Row(
@@ -571,7 +573,7 @@ class _HomeViewState extends State<HomeView> {
               child: Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.7),
+                  color: Colors.black.withValues(alpha: 0.7),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Column(
@@ -610,9 +612,7 @@ class _HomeViewState extends State<HomeView> {
       margin: const EdgeInsets.only(bottom: 20), // Space from actual bottom
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(
-          0.6,
-        ), // Dark background for media player
+        color: Colors.black.withValues(alpha: 0.6), // Dark background for media player
         borderRadius: BorderRadius.circular(20),
       ),
       child: Column(
@@ -764,7 +764,7 @@ class _WeatherConnectivityPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.4),
+        color: Colors.black.withValues(alpha: 0.4),
         borderRadius: BorderRadius.circular(25),
       ),
       child: Row(

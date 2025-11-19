@@ -133,6 +133,11 @@ class BackendService {
   void setDriveMode(String mode) =>
       sendCommand('set_drive_mode', params: {'value': mode});
 
+    // Drivetrain commands
+    /// Set the current drive direction/gear: one of 'P', 'R', 'N', 'D'
+    void setDriveDirection(String direction) =>
+      sendCommand('set_drive_direction', params: {'value': direction});
+
   // Infotainment settings commands
   void setBrightness(int brightness) =>
       sendCommand('set_brightness', params: {'value': brightness});

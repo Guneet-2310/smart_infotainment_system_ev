@@ -223,20 +223,20 @@ class _StatsViewState extends State<StatsView> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceAround,
       children: [
-        _MetricGauge(
+        _metricGauge(
           title: 'Battery Voltage',
           value: voltage,
           unit: 'V',
           max: 500,
         ),
-        _MetricGauge(title: 'Motor RPM', value: rpm, unit: 'RPM', max: 8000),
-        _MetricGauge(
+        _metricGauge(title: 'Motor RPM', value: rpm, unit: 'RPM', max: 8000),
+        _metricGauge(
           title: 'Ambient Temp',
           value: ambientTemp,
           unit: '°C',
           max: 50,
         ),
-        _MetricGauge(
+        _metricGauge(
           title: 'Cabin Temp',
           value: cabinTemp,
           unit: '°C',
@@ -408,16 +408,16 @@ class _StatsViewState extends State<StatsView> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.3),
+        color: Colors.black.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
         children: [
-          _GpsInfoRow(label: 'Satellites Locked', value: '$satellites / 22'),
-          _GpsInfoRow(label: 'Latitude', value: '$latitude° N'),
-          _GpsInfoRow(label: 'Longitude', value: '$longitude° E'),
-          _GpsInfoRow(label: 'Altitude', value: '$altitude m'),
-          _GpsInfoRow(
+          _gpsInfoRow(label: 'Satellites Locked', value: '$satellites / 22'),
+          _gpsInfoRow(label: 'Latitude', value: '$latitude° N'),
+          _gpsInfoRow(label: 'Longitude', value: '$longitude° E'),
+          _gpsInfoRow(label: 'Altitude', value: '$altitude m'),
+          _gpsInfoRow(
             label: 'CAN Bus Status',
             value: canBusConnected ? 'Connected' : 'Disconnected',
             valueColor: canBusConnected ? Colors.greenAccent : Colors.redAccent,
@@ -430,7 +430,7 @@ class _StatsViewState extends State<StatsView> {
   // --- HELPER WIDGETS ---
 
   /// A helper for the 4 gauges at the top
-  Widget _MetricGauge({
+  Widget _metricGauge({
     required String title,
     required double value,
     required String unit,
@@ -504,7 +504,7 @@ class _StatsViewState extends State<StatsView> {
   }
 
   /// A helper for the GPS info rows
-  Widget _GpsInfoRow({
+  Widget _gpsInfoRow({
     required String label,
     required String value,
     Color valueColor = Colors.white,
@@ -582,7 +582,7 @@ class _StatsViewState extends State<StatsView> {
           child: Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.3),
+              color: Colors.black.withValues(alpha: 0.3),
               borderRadius: BorderRadius.circular(8),
             ),
             child: data.isEmpty
@@ -611,7 +611,7 @@ class _StatsViewState extends State<StatsView> {
                           dotData: const FlDotData(show: false),
                           belowBarData: BarAreaData(
                             show: true,
-                            color: color.withOpacity(0.2),
+                            color: color.withValues(alpha: 0.2),
                           ),
                         ),
                       ],
@@ -630,7 +630,7 @@ class _StatsViewState extends State<StatsView> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.3),
+        color: Colors.black.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(

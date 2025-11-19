@@ -402,7 +402,7 @@ class _MapViewState extends State<MapView> {
                     Polyline(
                       points: _routePoints,
                       strokeWidth: 3.0,
-                      color: Colors.lightBlueAccent.withOpacity(0.5),
+                      color: Colors.lightBlueAccent.withValues(alpha: 0.5),
                     ),
                   ],
                 ),
@@ -431,7 +431,7 @@ class _MapViewState extends State<MapView> {
                     height: 60,
                     child: Container(
                       decoration: BoxDecoration(
-                        color: Colors.blueAccent.withOpacity(0.3),
+                        color: Colors.blueAccent.withValues(alpha: 0.3),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(
@@ -657,7 +657,7 @@ class _MapViewState extends State<MapView> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.8),
+        color: Colors.black.withValues(alpha: 0.8),
         borderRadius: const BorderRadius.only(
           topLeft: Radius.circular(20),
           topRight: Radius.circular(20),

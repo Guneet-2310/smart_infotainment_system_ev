@@ -71,7 +71,7 @@ class _SettingsViewState extends State<SettingsView> {
               child: Text(
                 "Developed by Guneet Chawla.",
                 style: TextStyle(
-                  color: Colors.white.withOpacity(0.3),
+                  color: Colors.white.withValues(alpha: 0.3),
                   fontSize: 12,
                 ),
               ),
@@ -295,8 +295,8 @@ class _SettingsSection extends StatelessWidget {
       collapsedShape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
       ),
-      backgroundColor: Colors.grey[900]?.withOpacity(0.5),
-      collapsedBackgroundColor: Colors.grey[900]?.withOpacity(0.5),
+      backgroundColor: Colors.grey[900]?.withValues(alpha: 0.5),
+      collapsedBackgroundColor: Colors.grey[900]?.withValues(alpha: 0.5),
 
       // Header
       leading: Icon(icon, color: Colors.blueAccent),
