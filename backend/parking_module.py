@@ -31,13 +31,30 @@ Mock Behavior (non-Pi):
 from __future__ import annotations
 import random
 import time
+import sys
+import os
 from typing import Dict, Any, Optional, Tuple
+from contextlib import contextmanager
 
 try:
     import platform
     IS_RPI = platform.machine().startswith('arm') or platform.machine().startswith('aarch')
 except Exception:
     IS_RPI = False
+
+@contextmanager
+def suppress_stdout_stderr():
+    """Suppress stdout and stderr to silence noisy library debug output."""
+    with open(os.devnull, 'w') as devnull:
+        old_stdout = sys.stdout
+        old_stderr = sys.stderr
+        sys.stdout = devnull
+        sys.stderr = devnull
+        try:
+            yield
+        finally:
+            sys.stdout = old_stdout
+            sys.stderr = old_stderr
 
 class ParkingAndCabinModule:
     def __init__(self):
@@ -138,14 +155,18 @@ class ParkingAndCabinModule:
         fresh_hum: Optional[float] = None
         while attempt < 3:
             try:
-                temp = self.dht.temperature
-                hum = self.dht.humidity
+                # Suppress DHT library debug output (prevents "999999..." spam)
+                with suppress_stdout_stderr():
+                    temp = self.dht.temperature
+                    hum = self.dht.humidity
                 if temp is not None and hum is not None:
                     fresh_temp = float(temp)
                     fresh_hum = float(hum)
                     break
             except Exception as e:
-                print(f"⚠ DHT11 sensor read attempt {attempt+1} failed: {e}")
+                # Only print first attempt failure to reduce log spam
+                if attempt == 0:
+                    print(f"⚠ DHT11 sensor read attempt {attempt+1} failed: {e}")
             attempt += 1
             time.sleep(0.4)  # short backoff between retries
 

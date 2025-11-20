@@ -714,12 +714,24 @@ class EVBackendServer:
     def collect_telemetry(self) -> Dict[str, Any]:
         """Collect all telemetry data from sensors and systems"""
         try:
-            # Read DHT11 sensor with error handling
+            # Read parking module (includes DHT11 temp/humidity)
             try:
-                dht_data = self.dht_sensor.read()
+                parking_data = self.parking_module.read()
+                dht_data = {
+                    'temperature': parking_data.get('temperature_c'),
+                    'humidity': parking_data.get('humidity_pct')
+                }
             except Exception as e:
-                logger.error(f"⚠ Error reading DHT sensor: {e}")
+                logger.error(f"⚠ Error reading parking module: {e}")
                 dht_data = {'temperature': None, 'humidity': None}
+                parking_data = {
+                    'reverse_engaged': False,
+                    'motion_detected': False,
+                    'distance_cm': None,
+                    'proximity_warning': None,
+                    'temperature_c': None,
+                    'humidity_pct': None,
+                }
             
             # Read vehicle data from CAN bus (currently mock)
             try:
@@ -752,19 +764,9 @@ class EVBackendServer:
                     'track_title': 'No Track Playing', 'track_artist': 'Unknown Artist',
                     'duration': 0, 'position': 0, 'is_playing': False
                 }
-            
-            # Read parking/cabin composite module
-            try:
-                parking_data = self.parking_module.read()
-            except Exception as e:
-                logger.error(f"⚠ Error reading parking module: {e}")
-                parking_data = {
-                    'reverse_engaged': False, 'motion_detected': False,
-                    'distance_cm': None, 'proximity_warning': None,
-                    'temperature_c': None, 'humidity_pct': None
-                }
 
             # Derive cabin environment from parking module (temperature/humidity)
+            # Note: parking_data already read at the beginning of this function
             cabin_temp = parking_data.get('temperature_c')
             cabin_humidity = parking_data.get('humidity_pct')
 
