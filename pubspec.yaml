@@ -19,6 +19,10 @@ dependencies:
   latlong2: ^0.9.1  # Latitude/Longitude handling
   http: ^1.1.0  # HTTP requests for geocoding and routing
   flutter_dotenv: ^5.1.0  # Load environment variables from .env
+  logger: ^2.0.0  # Structured logging with level filtering
+  path_provider: ^2.1.0  # File system paths for log files
+  geolocator: ^10.1.0  # GPS and location services
+  permission_handler: ^11.0.1  # Runtime permissions (future mobile use)
 
 dev_dependencies:
   flutter_test:

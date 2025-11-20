@@ -1,3 +1,4 @@
+import 'package:ev_smart_screen/services/logger_service.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
@@ -12,12 +13,19 @@ class RoutingService {
 
   /// Search for a place and get coordinates (Geocoding)
   /// Uses Nominatim API - free and open source
+  /// Biased towards India region for relevant results
   Future<List<SearchResult>> searchPlace(String query) async {
     if (query.isEmpty) return [];
 
     try {
+      // Prioritize India in search
+      final searchQuery = query;
+      
+      // Viewbox for North India (Delhi-NCR, Rajasthan, Haryana region)
+      // This covers Bhiwadi, Gurgaon, Delhi, etc.
+      // Format: left(west),top(north),right(east),bottom(south)
       final url = Uri.parse(
-        '$nominatimUrl/search?q=$query&format=json&limit=5&addressdetails=1',
+        '$nominatimUrl/search?q=${Uri.encodeComponent(searchQuery)}&format=json&limit=10&addressdetails=1&countrycodes=in&viewbox=75.0,30.0,78.5,26.0&bounded=0',
       );
 
       final response = await http.get(
@@ -34,7 +42,7 @@ class RoutingService {
         throw Exception('Failed to search: ${response.statusCode}');
       }
     } catch (e) {
-      print('Error searching place: $e');
+      AppLogger.error('Error searching place', error: e);
       return [];
     }
   }
@@ -61,7 +69,7 @@ class RoutingService {
         throw Exception('Failed to get route: ${response.statusCode}');
       }
     } catch (e) {
-      print('Error getting route: $e');
+      AppLogger.error('Error getting route', error: e);
       return null;
     }
   }
@@ -85,7 +93,7 @@ class RoutingService {
         return data['display_name'];
       }
     } catch (e) {
-      print('Error reverse geocoding: $e');
+      AppLogger.error('Error reverse geocoding', error: e);
     }
     return null;
   }

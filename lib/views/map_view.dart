@@ -5,6 +5,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:ev_smart_screen/services/backend_service.dart';
 import 'package:ev_smart_screen/services/routing_service.dart';
+import 'package:ev_smart_screen/services/gps_service.dart';
 
 class MapView extends StatefulWidget {
   const MapView({super.key});
@@ -26,6 +27,10 @@ class _MapViewState extends State<MapView> {
     28.4595,
     77.0266,
   ); // Default: Gurgaon, India
+  StreamSubscription<GPSCoordinate>? _gpsSubscription;
+  String _gpsSource = 'waiting'; // 'gps', 'ip', 'mock', 'backend', 'waiting'
+  DateTime? _lastLocalGPSUpdate;
+  bool _hasReceivedLocalGPS = false; // Track if we've gotten real GPS
 
   // Route tracking
   final List<LatLng> _routePoints = [];
@@ -42,12 +47,45 @@ class _MapViewState extends State<MapView> {
   void initState() {
     super.initState();
     _connectToBackend();
+    // Subscribe directly to GPS service for immediate position updates
+    _gpsSubscription = GPSService.instance.locationStream.listen((coord) {
+      final newPos = LatLng(coord.latitude, coord.longitude);
+      if (!mounted) return;
+      setState(() {
+        _hasReceivedLocalGPS = true; // Mark that we have real GPS
+        _vehiclePosition = newPos;
+        _gpsSource = coord.source;
+        _lastLocalGPSUpdate = DateTime.now();
+        if (_followVehicle) {
+          _mapController.move(newPos, _currentZoom);
+        }
+        if (_routePoints.isEmpty ||
+            _routePoints.last.latitude != newPos.latitude ||
+            _routePoints.last.longitude != newPos.longitude) {
+          _routePoints.add(newPos);
+          if (_routePoints.length > 500) {
+            _routePoints.removeAt(0);
+          }
+        }
+      });
+      // Emit to backend
+      _backend.sendGPSCoordinate(
+        coord.latitude,
+        coord.longitude,
+        altitude: coord.altitude,
+        speed: coord.speed,
+        heading: coord.heading,
+        accuracy: coord.accuracy,
+        source: coord.source,
+      );
+    });
   }
 
   @override
   void dispose() {
     _backend.dispose();
     _searchController.dispose();
+    _gpsSubscription?.cancel();
     super.dispose();
   }
 
@@ -177,35 +215,50 @@ class _MapViewState extends State<MapView> {
     // Listen for telemetry updates
     _backend.telemetryStream.listen(
       (data) {
+        if (!mounted) return;
         setState(() {
           _telemetry = data;
           _isConnected = true;
           _connectionStatus = 'Connected';
 
-          // Update vehicle position from GPS data
+          // CRITICAL: Only use backend GPS as FALLBACK when local GPS is completely stale
           final gps = data['gps'];
           if (gps != null) {
-            final lat = gps['latitude']?.toDouble() ?? 28.4595;
-            final lon = gps['longitude']?.toDouble() ?? 77.0266;
+            // Check if local GPS is recent (within last 15 seconds)
+            final localStale = _lastLocalGPSUpdate == null ||
+                DateTime.now().difference(_lastLocalGPSUpdate!).inSeconds > 15;
+            
+            // ONLY use backend GPS if:
+            // 1. We've never received local GPS, OR
+            // 2. Local GPS hasn't updated in 15+ seconds
+            if (!_hasReceivedLocalGPS && localStale) {
+              final lat = gps['latitude']?.toDouble();
+              final lon = gps['longitude']?.toDouble();
+              
+              if (lat != null && lon != null) {
+                _gpsSource = 'backend';
+                final newPos = LatLng(lat, lon);
+                _vehiclePosition = newPos;
 
-            _vehiclePosition = LatLng(lat, lon);
+                // Add to route tracking
+                if (_routePoints.isEmpty ||
+                    _routePoints.last.latitude != lat ||
+                    _routePoints.last.longitude != lon) {
+                  _routePoints.add(newPos);
 
-            // Add to route tracking
-            if (_routePoints.isEmpty ||
-                _routePoints.last.latitude != lat ||
-                _routePoints.last.longitude != lon) {
-              _routePoints.add(_vehiclePosition);
+                  // Keep only last 500 points
+                  if (_routePoints.length > 500) {
+                    _routePoints.removeAt(0);
+                  }
+                }
 
-              // Keep only last 500 points (about 8 minutes at 1 update/sec)
-              if (_routePoints.length > 500) {
-                _routePoints.removeAt(0);
+                // Auto-center map on vehicle if follow mode is enabled
+                if (_followVehicle) {
+                  _mapController.move(newPos, _currentZoom);
+                }
               }
             }
-
-            // Auto-center map on vehicle if follow mode is enabled
-            if (_followVehicle) {
-              _mapController.move(_vehiclePosition, _currentZoom);
-            }
+            // If local GPS is active (<15s old), completely ignore backend GPS
           }
         });
       },
@@ -320,7 +373,7 @@ class _MapViewState extends State<MapView> {
               },
               tooltip: 'Search place',
             ),
-          // Connection status
+          // Connection status + GPS source
           Padding(
             padding: const EdgeInsets.only(right: 8),
             child: Row(
@@ -337,6 +390,39 @@ class _MapViewState extends State<MapView> {
                   style: TextStyle(
                     color: _isConnected ? Colors.greenAccent : Colors.redAccent,
                     fontSize: 12,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: _getGPSSourceColor().withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: _getGPSSourceColor(), width: 1),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (_gpsSource == 'gps')
+                        const Icon(Icons.gps_fixed, size: 10, color: Colors.greenAccent)
+                      else if (_gpsSource == 'waiting')
+                        const SizedBox(
+                          width: 10,
+                          height: 10,
+                          child: CircularProgressIndicator(strokeWidth: 1.5, color: Colors.amber),
+                        )
+                      else
+                        Icon(Icons.gps_not_fixed, size: 10, color: _getGPSSourceColor()),
+                      const SizedBox(width: 4),
+                      Text(
+                        _gpsSource.toUpperCase(),
+                        style: TextStyle(
+                          color: _getGPSSourceColor(),
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -728,6 +814,24 @@ class _MapViewState extends State<MapView> {
         ],
       ),
     );
+  }
+
+  /// Get color for GPS source badge
+  Color _getGPSSourceColor() {
+    switch (_gpsSource) {
+      case 'gps':
+        return Colors.greenAccent;
+      case 'mock':
+        return Colors.orangeAccent;
+      case 'ip':
+        return Colors.yellowAccent;
+      case 'backend':
+        return Colors.blueAccent;
+      case 'waiting':
+        return Colors.amber;
+      default:
+        return Colors.grey;
+    }
   }
 
   /// Build individual data item

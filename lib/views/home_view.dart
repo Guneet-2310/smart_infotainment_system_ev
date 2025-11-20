@@ -30,6 +30,7 @@ class _HomeViewState extends State<HomeView> {
   final BackendService _backend = BackendService();
   Map<String, dynamic> _telemetry = {}; // Real-time data from backend
   bool _isConnected = false;
+  bool _showReverseOverlay = false; // Parking reverse camera overlay trigger
 
   // Notification service
   final NotificationService _notificationService = NotificationService();
@@ -105,11 +106,12 @@ class _HomeViewState extends State<HomeView> {
 
     // Listen for telemetry updates
     _backend.telemetryStream.listen((data) {
+      final parking = data['parking'] ?? {};
+      final reverseEngaged = parking['reverse_engaged'] == true;
       setState(() {
         _telemetry = data;
         _isConnected = true;
-
-        // Check for notifications
+        _showReverseOverlay = reverseEngaged;
         _notificationService.checkTelemetry(data);
       });
     });
@@ -168,6 +170,12 @@ class _HomeViewState extends State<HomeView> {
 
           // --- Top Bar (Time & Status) - unchanged ---
           _buildTopBar(),
+
+          // --- Reverse Overlay (covers screen when active) ---
+          if (_showReverseOverlay)
+            Positioned.fill(
+              child: _buildReverseOverlay(),
+            ),
 
           // --- Bottom Bar (Media Controls) - unchanged but now part of Left Column ---
           // This will be handled inside _buildLeftColumn now
@@ -400,10 +408,10 @@ class _HomeViewState extends State<HomeView> {
           0.35, // Approx 35% of screen width
       padding: const EdgeInsets.fromLTRB(
         24,
-        80,
+        70,
         24,
-        24,
-      ), // Top padding for time/date
+        16,
+      ), // Reduced padding
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -412,27 +420,29 @@ class _HomeViewState extends State<HomeView> {
             _currentDate,
             style: const TextStyle(
               color: Colors.white70,
-              fontSize: 20,
+              fontSize: 18,
               fontWeight: FontWeight.w400,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 2),
 
           // Time
           Text(
             _currentTime,
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 60, // Large time font
+              fontSize: 56, // Slightly smaller time font
               fontWeight: FontWeight.bold,
             ),
           ),
 
-          const SizedBox(height: 32),
+          const SizedBox(height: 20),
 
           // EV Metrics (now in a row, below time)
           _buildEvMetricsRow(),
-          const SizedBox(height: 32),
+          const SizedBox(height: 12),
+          _buildCabinRow(),
+          const SizedBox(height: 12),
 
           // Expanded space to push media player to bottom
           const Spacer(),
@@ -451,10 +461,10 @@ class _HomeViewState extends State<HomeView> {
     final battery = _telemetry['battery_soc']?.toStringAsFixed(0) ?? '--';
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 18),
       decoration: BoxDecoration(
         color: Colors.black.withValues(alpha: 0.4), // Dark background for the row
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -468,6 +478,34 @@ class _HomeViewState extends State<HomeView> {
             value: "$battery%",
             label: "Battery",
             iconColor: Colors.greenAccent,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCabinRow() {
+    final cabin = _telemetry['cabin'] ?? {};
+    final parking = _telemetry['parking'] ?? {};
+    final temp = (cabin['temperature_c'] ?? _telemetry['ambient_temp'])?.toStringAsFixed(1) ?? '--';
+    final hum = (cabin['humidity_pct'] ?? _telemetry['humidity'])?.toStringAsFixed(0) ?? '--';
+    final motion = parking['motion_detected'] == true;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.35),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _CompactMetricItem(value: temp, unit: '°C', label: 'Cabin'),
+          _CompactMetricItem(value: hum, unit: '%', label: 'Humidity'),
+          _CompactMetricItem(
+            value: motion ? 'MOT' : '—',
+            label: 'Rear Motion',
+            iconColor: motion ? Colors.purpleAccent : Colors.white54,
           ),
         ],
       ),
@@ -609,19 +647,19 @@ class _HomeViewState extends State<HomeView> {
 
   Widget _buildMediaPlayer() {
     return Container(
-      margin: const EdgeInsets.only(bottom: 20), // Space from actual bottom
-      padding: const EdgeInsets.all(20),
+      margin: const EdgeInsets.only(bottom: 8), // Reduced bottom margin
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.black.withValues(alpha: 0.6), // Dark background for media player
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Row(
             children: [
-              const Icon(Icons.music_note, color: Colors.white, size: 30),
-              const SizedBox(width: 15),
+              const Icon(Icons.music_note, color: Colors.white, size: 28),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -644,17 +682,17 @@ class _HomeViewState extends State<HomeView> {
               ),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 14),
 
           // Playback progress bar (LIVE)
           LinearProgressIndicator(
             value: _calculateProgress(),
             backgroundColor: Colors.white24,
             valueColor: const AlwaysStoppedAnimation<Color>(Colors.blueAccent),
-            minHeight: 4,
+            minHeight: 3,
             borderRadius: BorderRadius.circular(2),
           ),
-          const SizedBox(height: 5),
+          const SizedBox(height: 4),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -668,7 +706,7 @@ class _HomeViewState extends State<HomeView> {
               ),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 12),
 
           // Controls and Volume
           Row(
@@ -717,10 +755,10 @@ class _HomeViewState extends State<HomeView> {
                 ),
                 onPressed: () => _backend.nextTrack(), // Backend command
               ),
-              const Icon(Icons.volume_up, color: Colors.white70, size: 28),
+              const Icon(Icons.volume_up, color: Colors.white70, size: 26),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 6),
           SliderTheme(
             data: SliderTheme.of(context).copyWith(
               trackHeight: 2.0,
@@ -737,6 +775,147 @@ class _HomeViewState extends State<HomeView> {
               },
               activeColor: Colors.blueAccent,
               inactiveColor: Colors.white30,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReverseOverlay() {
+    final parking = _telemetry['parking'] ?? {};
+    final distance = parking['distance_cm'];
+    final warning = parking['proximity_warning'];
+    final motion = parking['motion_detected'] == true;
+    Color warnColor;
+    String warnText;
+    switch (warning) {
+      case 'high':
+        warnColor = Colors.redAccent;
+        warnText = 'OBJECT VERY CLOSE';
+        break;
+      case 'medium':
+        warnColor = Colors.orangeAccent;
+        warnText = 'OBJECT CLOSE';
+        break;
+      case 'low':
+        warnColor = Colors.yellowAccent;
+        warnText = 'OBJECT NEARBY';
+        break;
+      case 'clear':
+        warnColor = Colors.greenAccent;
+        warnText = 'AREA CLEAR';
+        break;
+      default:
+        warnColor = Colors.grey;
+        warnText = 'IDLE';
+    }
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.8),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          // Camera placeholder occupying ~75%
+          Expanded(
+            flex: 3,
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.4),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.white24),
+              ),
+              alignment: Alignment.center,
+              child: const Text(
+                'REVERSE CAMERA FEED\n(placeholder)',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.white54, fontSize: 16),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Warning + stats
+          Expanded(
+            flex: 1,
+            child: Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: warnColor.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: warnColor, width: 1.5),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          warnText,
+                          style: TextStyle(
+                            color: warnColor,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          distance != null ? '${distance.toStringAsFixed(1)} cm' : '—',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.35),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.white24),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          motion ? Icons.directions_run : Icons.accessibility_new,
+                          color: motion ? Colors.purpleAccent : Colors.white54,
+                          size: 28,
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          motion ? 'MOTION DETECTED' : 'NO MOTION',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        ElevatedButton(
+                          onPressed: () {
+                            setState(() => _showReverseOverlay = false);
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.redAccent,
+                            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                          ),
+                          child: const Text('CLOSE'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -818,18 +997,59 @@ class _EvMetricItem extends StatelessWidget {
           value,
           style: const TextStyle(
             color: Colors.white,
-            fontSize: 30, // Slightly smaller for the row
+            fontSize: 28, // Reduced size
             fontWeight: FontWeight.bold,
           ),
         ),
         if (unit != null)
           Text(
             unit!,
-            style: const TextStyle(color: Colors.white70, fontSize: 14),
+            style: const TextStyle(color: Colors.white70, fontSize: 13),
           ),
         Text(
           label,
-          style: const TextStyle(color: Colors.white70, fontSize: 12),
+          style: const TextStyle(color: Colors.white70, fontSize: 11),
+        ),
+      ],
+    );
+  }
+}
+
+/// Compact metric item for cabin row (smaller font sizes)
+class _CompactMetricItem extends StatelessWidget {
+  const _CompactMetricItem({
+    required this.value,
+    required this.label,
+    this.unit,
+    this.iconColor = Colors.white,
+  });
+
+  final String value;
+  final String? unit;
+  final String label;
+  final Color iconColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          value,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        if (unit != null)
+          Text(
+            unit!,
+            style: const TextStyle(color: Colors.white70, fontSize: 11),
+          ),
+        Text(
+          label,
+          style: const TextStyle(color: Colors.white70, fontSize: 10),
         ),
       ],
     );

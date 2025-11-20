@@ -22,6 +22,7 @@ import time
 from datetime import datetime
 from typing import Dict, Set, Any, Optional
 import websockets
+import parking_module
 
 # Platform detection
 IS_RPI = platform.machine().startswith('arm') or platform.machine().startswith('aarch')
@@ -88,12 +89,20 @@ class DHT11Sensor:
                 # DHT sensors can occasionally fail to read
                 logger.warning(f"Failed to read DHT11 sensor: {e}")
                 return {'temperature': None, 'humidity': None}
+            except Exception as e:
+                # Catch any other sensor errors
+                logger.error(f"⚠ DHT11 sensor critical error: {e}")
+                return {'temperature': None, 'humidity': None}
         else:
             # Mock data for testing
-            return {
-                'temperature': round(random.uniform(20.0, 30.0), 1),
-                'humidity': round(random.uniform(40.0, 60.0), 1)
-            }
+            try:
+                return {
+                    'temperature': round(random.uniform(20.0, 30.0), 1),
+                    'humidity': round(random.uniform(40.0, 60.0), 1)
+                }
+            except Exception as e:
+                logger.error(f"⚠ Mock data generation error: {e}")
+                return {'temperature': None, 'humidity': None}
 
 
 class CANBusInterface:
@@ -108,21 +117,47 @@ class CANBusInterface:
     
     def read_vehicle_data(self) -> Dict[str, Any]:
         """Read vehicle telemetry (currently returns mock data)"""
-        # When CAN bus is available, implement real CAN message parsing here
-        return self._generate_mock_vehicle_data()
+        try:
+            # When CAN bus is available, implement real CAN message parsing here
+            return self._generate_mock_vehicle_data()
+        except Exception as e:
+            logger.error(f"⚠ CAN bus read error: {e}")
+            return {
+                'speed': 0.0,
+                'battery_soc': 0.0,
+                'battery_voltage': 0.0,
+                'battery_current': 0.0,
+                'motor_rpm': 0,
+                'motor_temp': 0.0,
+                'range_km': 0.0,
+                'power_kw': 0.0,
+            }
     
     def _generate_mock_vehicle_data(self) -> Dict[str, Any]:
         """Generate realistic mock vehicle data"""
-        return {
-            'speed': round(random.uniform(0, 120), 1),
-            'battery_soc': round(random.uniform(60, 95), 1),
-            'battery_voltage': round(random.uniform(380, 420), 1),
-            'battery_current': round(random.uniform(-50, 50), 1),
-            'motor_rpm': round(random.uniform(0, 8000), 0),
-            'motor_temp': round(random.uniform(60, 95), 1),
-            'range_km': round(random.uniform(250, 350), 0),
-            'power_kw': round(random.uniform(0, 100), 1),
-        }
+        try:
+            return {
+                'speed': round(random.uniform(0, 120), 1),
+                'battery_soc': round(random.uniform(60, 95), 1),
+                'battery_voltage': round(random.uniform(380, 420), 1),
+                'battery_current': round(random.uniform(-50, 50), 1),
+                'motor_rpm': round(random.uniform(0, 8000), 0),
+                'motor_temp': round(random.uniform(60, 95), 1),
+                'range_km': round(random.uniform(250, 350), 0),
+                'power_kw': round(random.uniform(0, 100), 1),
+            }
+        except Exception as e:
+            logger.error(f"⚠ Mock vehicle data generation error: {e}")
+            return {
+                'speed': 0.0,
+                'battery_soc': 0.0,
+                'battery_voltage': 0.0,
+                'battery_current': 0.0,
+                'motor_rpm': 0,
+                'motor_temp': 0.0,
+                'range_km': 0.0,
+                'power_kw': 0.0,
+            }
 
 
 class GPSModule:
@@ -157,32 +192,43 @@ class GPSModule:
     
     def read(self) -> Dict[str, Any]:
         """Read GPS coordinates with simulated movement"""
-        if self.available:
-            # Read from actual GPS module
-            pass
-        
-        # Simulate movement along route
-        point_index = (self.movement_step // 10) % len(self.route_points)
-        target_lat, target_lon = self.route_points[point_index]
-        
-        # Smooth interpolation to target
-        self.current_lat += (target_lat - self.current_lat) * 0.1
-        self.current_lon += (target_lon - self.current_lon) * 0.1
-        
-        self.movement_step += 1
-        
-        # Add small random variation for realism
-        lat_with_noise = self.current_lat + random.uniform(-0.0001, 0.0001)
-        lon_with_noise = self.current_lon + random.uniform(-0.0001, 0.0001)
-        
-        return {
-            'latitude': round(lat_with_noise, 6),
-            'longitude': round(lon_with_noise, 6),
-            'heading': round((self.movement_step * 2) % 360, 1),  # Rotating heading
-            'altitude': round(random.uniform(230, 250), 1),
-            'satellites': random.randint(8, 12),
-            'speed_gps': round(random.uniform(0, 100), 1)
-        }
+        try:
+            if self.available:
+                # Read from actual GPS module
+                pass
+            
+            # Simulate movement along route
+            point_index = (self.movement_step // 10) % len(self.route_points)
+            target_lat, target_lon = self.route_points[point_index]
+            
+            # Smooth interpolation to target
+            self.current_lat += (target_lat - self.current_lat) * 0.1
+            self.current_lon += (target_lon - self.current_lon) * 0.1
+            
+            self.movement_step += 1
+            
+            # Add small random variation for realism
+            lat_with_noise = self.current_lat + random.uniform(-0.0001, 0.0001)
+            lon_with_noise = self.current_lon + random.uniform(-0.0001, 0.0001)
+            
+            return {
+                'latitude': round(lat_with_noise, 6),
+                'longitude': round(lon_with_noise, 6),
+                'heading': round((self.movement_step * 2) % 360, 1),  # Rotating heading
+                'altitude': round(random.uniform(230, 250), 1),
+                'satellites': random.randint(8, 12),
+                'speed_gps': round(random.uniform(0, 100), 1)
+            }
+        except Exception as e:
+            logger.error(f"⚠ GPS module error: {e}")
+            return {
+                'latitude': self.base_lat,
+                'longitude': self.base_lon,
+                'heading': 0.0,
+                'altitude': 240.0,
+                'satellites': 0,
+                'speed_gps': 0.0
+            }
 
 
 # ============================================================================
@@ -212,56 +258,87 @@ class BluetoothMediaController:
     
     def connect_device(self, device_address: str) -> bool:
         """Connect to a Bluetooth device"""
-        logger.info(f"Attempting to connect to Bluetooth device: {device_address}")
-        # Actual Bluetooth connection logic here
-        self.connected = True
-        self.device_name = "Mock Phone"
-        return True
+        try:
+            logger.info(f"Attempting to connect to Bluetooth device: {device_address}")
+            # Actual Bluetooth connection logic here
+            self.connected = True
+            self.device_name = "Mock Phone"
+            return True
+        except Exception as e:
+            logger.error(f"⚠ Bluetooth connection error: {e}")
+            return False
     
     def play(self):
         """Play media"""
-        logger.info("Media command: PLAY")
-        self.current_track['is_playing'] = True
+        try:
+            logger.info("Media command: PLAY")
+            self.current_track['is_playing'] = True
+        except Exception as e:
+            logger.error(f"⚠ Bluetooth play error: {e}")
     
     def pause(self):
         """Pause media"""
-        logger.info("Media command: PAUSE")
-        self.current_track['is_playing'] = False
+        try:
+            logger.info("Media command: PAUSE")
+            self.current_track['is_playing'] = False
+        except Exception as e:
+            logger.error(f"⚠ Bluetooth pause error: {e}")
     
     def next_track(self):
         """Skip to next track"""
-        logger.info("Media command: NEXT")
-        self.current_track['position'] = 0
-        self.current_track['title'] = f"Track {random.randint(1, 100)}"
+        try:
+            logger.info("Media command: NEXT")
+            self.current_track['position'] = 0
+            self.current_track['title'] = f"Track {random.randint(1, 100)}"
+        except Exception as e:
+            logger.error(f"⚠ Bluetooth next track error: {e}")
     
     def previous_track(self):
         """Go to previous track"""
-        logger.info("Media command: PREVIOUS")
-        self.current_track['position'] = 0
-        self.current_track['title'] = f"Track {random.randint(1, 100)}"
+        try:
+            logger.info("Media command: PREVIOUS")
+            self.current_track['position'] = 0
+            self.current_track['title'] = f"Track {random.randint(1, 100)}"
+        except Exception as e:
+            logger.error(f"⚠ Bluetooth previous track error: {e}")
     
     def set_volume(self, volume: float):
         """Set volume (0.0 to 1.0)"""
-        logger.info(f"Media command: SET_VOLUME to {volume}")
+        try:
+            logger.info(f"Media command: SET_VOLUME to {volume}")
+        except Exception as e:
+            logger.error(f"⚠ Bluetooth volume error: {e}")
     
     def get_status(self) -> Dict[str, Any]:
         """Get current media status"""
-        # Update position if playing
-        if self.current_track['is_playing']:
-            self.current_track['position'] = min(
-                self.current_track['position'] + 1,
-                self.current_track['duration']
-            )
-        
-        return {
-            'connected': self.connected,
-            'device_name': self.device_name,
-            'track_title': self.current_track['title'],
-            'track_artist': self.current_track['artist'],
-            'duration': self.current_track['duration'],
-            'position': self.current_track['position'],
-            'is_playing': self.current_track['is_playing']
-        }
+        try:
+            # Update position if playing
+            if self.current_track['is_playing']:
+                self.current_track['position'] = min(
+                    self.current_track['position'] + 1,
+                    self.current_track['duration']
+                )
+            
+            return {
+                'connected': self.connected,
+                'device_name': self.device_name,
+                'track_title': self.current_track['title'],
+                'track_artist': self.current_track['artist'],
+                'duration': self.current_track['duration'],
+                'position': self.current_track['position'],
+                'is_playing': self.current_track['is_playing']
+            }
+        except Exception as e:
+            logger.error(f"⚠ Bluetooth get status error: {e}")
+            return {
+                'connected': False,
+                'device_name': 'Error',
+                'track_title': 'No Track Playing',
+                'track_artist': 'Unknown Artist',
+                'duration': 0,
+                'position': 0,
+                'is_playing': False
+            }
 
 
 # ============================================================================
@@ -314,28 +391,43 @@ class MQTTCloudClient:
             logger.info(f"Connecting to MQTT broker: {broker}:{port}")
             return True
             
+        except ConnectionRefusedError as e:
+            logger.error(f"⚠ MQTT broker connection refused: {e}")
+            return False
+        except TimeoutError as e:
+            logger.error(f"⚠ MQTT broker connection timeout: {e}")
+            return False
         except Exception as e:
-            logger.error(f"Failed to connect to MQTT broker: {e}")
+            logger.error(f"⚠ Failed to connect to MQTT broker: {e}")
             return False
     
     def _on_connect(self, client, userdata, flags, rc):
         """Callback when connected to MQTT broker"""
-        if rc == 0:
-            self.connected = True
-            logger.info("Connected to MQTT broker successfully")
-            # Subscribe to command topics
-            client.subscribe("ev/commands/#")
-        else:
-            logger.error(f"Failed to connect to MQTT broker. Return code: {rc}")
+        try:
+            if rc == 0:
+                self.connected = True
+                logger.info("✓ Connected to MQTT broker successfully")
+                # Subscribe to command topics
+                client.subscribe("ev/commands/#")
+            else:
+                logger.error(f"⚠ Failed to connect to MQTT broker. Return code: {rc}")
+        except Exception as e:
+            logger.error(f"⚠ MQTT on_connect callback error: {e}")
     
     def _on_disconnect(self, client, userdata, rc):
         """Callback when disconnected from MQTT broker"""
-        self.connected = False
-        logger.warning(f"Disconnected from MQTT broker. Return code: {rc}")
+        try:
+            self.connected = False
+            logger.warning(f"⚠ Disconnected from MQTT broker. Return code: {rc}")
+        except Exception as e:
+            logger.error(f"⚠ MQTT on_disconnect callback error: {e}")
     
     def _on_message(self, client, userdata, msg):
         """Callback when message received from MQTT broker"""
-        logger.info(f"MQTT message received: {msg.topic} - {msg.payload.decode()}")
+        try:
+            logger.info(f"MQTT message received: {msg.topic} - {msg.payload.decode()}")
+        except Exception as e:
+            logger.error(f"⚠ MQTT on_message callback error: {e}")
     
     def publish_telemetry(self, data: Dict[str, Any]):
         """Publish telemetry data to cloud"""
@@ -343,15 +435,23 @@ class MQTTCloudClient:
             try:
                 payload = json.dumps(data)
                 self.client.publish("ev/telemetry", payload, qos=1)
+            except TypeError as e:
+                logger.error(f"⚠ MQTT publish serialization error: {e}")
+            except ConnectionError as e:
+                logger.error(f"⚠ MQTT publish connection error: {e}")
+                self.connected = False
             except Exception as e:
-                logger.warning(f"Failed to publish telemetry: {e}")
+                logger.warning(f"⚠ Failed to publish telemetry: {e}")
     
     def disconnect(self):
         """Disconnect from MQTT broker"""
-        if self.client:
-            self.client.loop_stop()
-            self.client.disconnect()
-            logger.info("Disconnected from MQTT broker")
+        try:
+            if self.client:
+                self.client.loop_stop()
+                self.client.disconnect()
+                logger.info("✓ Disconnected from MQTT broker")
+        except Exception as e:
+            logger.error(f"⚠ MQTT disconnect error: {e}")
 
 
 # ============================================================================
@@ -368,6 +468,8 @@ class EVBackendServer:
         self.gps = GPSModule()
         self.bluetooth = BluetoothMediaController()
         self.mqtt = MQTTCloudClient()
+        # Parking & cabin module (ultrasonic, motion, reverse, temp/humidity)
+        self.parking_module = parking_module.ParkingAndCabinModule()
         
         # Connected WebSocket clients
         self.clients: Set = set()
@@ -406,43 +508,52 @@ class EVBackendServer:
             'play_music', 'pause_music', 'next_track', 'previous_track',
             'set_volume', 'set_charge_limit', 'set_regen_level',
             'set_drive_mode', 'set_brightness', 'set_theme',
-            'toggle_predictions', 'set_twin_mode', 'connect_bluetooth'
+            'toggle_predictions', 'set_twin_mode', 'connect_bluetooth',
+            'update_gps'  # Client GPS coordinate upload
         }
         
         logger.info("EV Backend Server initialized")
     
     async def start(self, host: str = '0.0.0.0', port: int = 8765):
         """Start the WebSocket server"""
-        self.running = True
-        
-        # Start MQTT connection (optional)
-        # self.mqtt.connect('broker.example.com', 1883, use_tls=False)
-        
-        logger.info(f"WebSocket server starting on ws://{host}:{port}")
-        
-        async with websockets.serve(self.handle_client, host, port):
-            logger.info(f"WebSocket server started on ws://{host}:{port}")
+        try:
+            self.running = True
             
-            # Start telemetry broadcast task
-            telemetry_task = asyncio.create_task(self.broadcast_telemetry())
+            # Start MQTT connection (optional)
+            # self.mqtt.connect('broker.example.com', 1883, use_tls=False)
             
-            # Keep server running
-            try:
-                await asyncio.Future()  # Run forever
-            except KeyboardInterrupt:
-                logger.info("Server shutdown requested")
-            finally:
-                self.running = False
-                telemetry_task.cancel()
-                self.mqtt.disconnect()
+            logger.info(f"WebSocket server starting on ws://{host}:{port}")
+            
+            async with websockets.serve(self.handle_client, host, port):
+                logger.info(f"✓ WebSocket server started on ws://{host}:{port}")
+                
+                # Start telemetry broadcast task
+                telemetry_task = asyncio.create_task(self.broadcast_telemetry())
+                
+                # Keep server running
+                try:
+                    await asyncio.Future()  # Run forever
+                except KeyboardInterrupt:
+                    logger.info("✓ Server shutdown requested")
+                finally:
+                    self.running = False
+                    telemetry_task.cancel()
+                    self.mqtt.disconnect()
+        except OSError as e:
+            logger.error(f"⚠ WebSocket server failed to start (port may be in use): {e}")
+            raise
+        except Exception as e:
+            logger.error(f"⚠ WebSocket server startup error: {e}")
+            raise
     
     async def handle_client(self, websocket):
         """Handle new WebSocket client connection"""
-        self.clients.add(websocket)
-        client_addr = websocket.remote_address
-        logger.info(f"Flutter client connected: {client_addr}")
-        
+        client_addr = None
         try:
+            self.clients.add(websocket)
+            client_addr = websocket.remote_address
+            logger.info(f"✓ Flutter client connected: {client_addr}")
+            
             # Send initial connection confirmation
             await websocket.send(json.dumps({
                 'type': 'connection',
@@ -454,10 +565,14 @@ class EVBackendServer:
             async for message in websocket:
                 await self.handle_command(websocket, message)
                 
+        except websockets.exceptions.ConnectionClosedOK:
+            logger.info(f"✓ Flutter client disconnected normally: {client_addr}")
+        except websockets.exceptions.ConnectionClosedError as e:
+            logger.warning(f"⚠ Flutter client connection error: {client_addr} - {e}")
         except websockets.exceptions.ConnectionClosed:
             logger.info(f"Flutter client disconnected: {client_addr}")
         except Exception as e:
-            logger.error(f"Error handling client {client_addr}: {e}")
+            logger.error(f"⚠ Error handling client {client_addr}: {e}")
         finally:
             self.clients.discard(websocket)
     
@@ -469,7 +584,7 @@ class EVBackendServer:
             
             # Input sanitization - validate action
             if not action or action not in self.VALID_COMMANDS:
-                logger.warning(f"Invalid or unknown action received: {action}")
+                logger.warning(f"⚠ Invalid or unknown action received: {action}")
                 await websocket.send(json.dumps({
                     'type': 'error',
                     'message': f'Invalid action: {action}'
@@ -484,18 +599,26 @@ class EVBackendServer:
             # Send response
             await websocket.send(json.dumps(response))
             
-        except json.JSONDecodeError:
-            logger.error("Received invalid JSON from client")
-            await websocket.send(json.dumps({
-                'type': 'error',
-                'message': 'Invalid JSON format'
-            }))
+        except json.JSONDecodeError as e:
+            logger.error(f"⚠ Received invalid JSON from client: {e}")
+            try:
+                await websocket.send(json.dumps({
+                    'type': 'error',
+                    'message': 'Invalid JSON format'
+                }))
+            except:
+                pass  # Client may be disconnected
+        except websockets.exceptions.ConnectionClosed:
+            logger.warning("⚠ Client disconnected during command handling")
         except Exception as e:
-            logger.error(f"Error handling command: {e}")
-            await websocket.send(json.dumps({
-                'type': 'error',
-                'message': str(e)
-            }))
+            logger.error(f"⚠ Error handling command: {e}")
+            try:
+                await websocket.send(json.dumps({
+                    'type': 'error',
+                    'message': str(e)
+                }))
+            except:
+                pass  # Client may be disconnected
     
     async def execute_command(self, action: str, data: Dict[str, Any]) -> Dict[str, Any]:
         """Execute a validated command"""
@@ -573,12 +696,28 @@ class EVBackendServer:
             success = self.bluetooth.connect_device(device_address)
             return {'type': 'response', 'action': action, 'status': 'success' if success else 'failed'}
         
+        # GPS coordinate from client (override backend GPS with client's real position)
+        elif action == 'update_gps':
+            lat = data.get('latitude')
+            lon = data.get('longitude')
+            source = data.get('source', 'unknown')
+            if lat is not None and lon is not None:
+                logger.info(f"Client GPS update: ({lat:.6f}, {lon:.6f}) from {source}")
+                # Override backend GPS with client's more accurate position
+                self.gps.current_lat = lat
+                self.gps.current_lon = lon
+                # Mark that we're using client GPS
+                if not hasattr(self, '_using_client_gps'):
+                    self._using_client_gps = True
+                    logger.info("Switched to using client GPS coordinates")
+            return {'type': 'response', 'action': action, 'status': 'success'}
+        
         else:
             return {'type': 'response', 'action': action, 'status': 'unknown'}
     
     async def broadcast_telemetry(self):
         """Broadcast telemetry data to all connected clients"""
-        logger.info("Telemetry broadcast task started")
+        logger.info("✓ Telemetry broadcast task started")
         
         while self.running:
             try:
@@ -587,47 +726,106 @@ class EVBackendServer:
                 
                 # Broadcast to all connected clients
                 if self.clients:
-                    message = json.dumps(telemetry)
-                    await asyncio.gather(
-                        *[client.send(message) for client in self.clients],
-                        return_exceptions=True
-                    )
+                    try:
+                        message = json.dumps(telemetry)
+                        results = await asyncio.gather(
+                            *[client.send(message) for client in self.clients],
+                            return_exceptions=True
+                        )
+                        # Remove failed clients
+                        for i, result in enumerate(results):
+                            if isinstance(result, Exception):
+                                logger.warning(f"⚠ Failed to send to client: {result}")
+                    except TypeError as e:
+                        logger.error(f"⚠ Telemetry serialization error: {e}")
+                    except Exception as e:
+                        logger.error(f"⚠ Error broadcasting to clients: {e}")
                 
                 # Publish to MQTT cloud (if connected)
-                if self.mqtt.connected:
-                    self.mqtt.publish_telemetry(telemetry)
+                try:
+                    if self.mqtt.connected:
+                        self.mqtt.publish_telemetry(telemetry)
+                except Exception as e:
+                    logger.warning(f"⚠ Error publishing to MQTT: {e}")
                 
                 # Wait 1 second before next broadcast
                 await asyncio.sleep(1.0)
-                
+            except asyncio.CancelledError:
+                logger.info("✓ Telemetry broadcast task cancelled")
+                break
             except Exception as e:
-                logger.error(f"Error in telemetry broadcast: {e}")
-                await asyncio.sleep(1.0)
+                logger.error(f"⚠ Critical error in telemetry broadcast loop: {e}")
+                await asyncio.sleep(1.0)  # Continue despite errors
     
     def collect_telemetry(self) -> Dict[str, Any]:
         """Collect all telemetry data from sensors and systems"""
-        
-        # Read DHT11 sensor
-        dht_data = self.dht_sensor.read()
-        
-        # Read vehicle data from CAN bus (currently mock)
-        vehicle_data = self.can_bus.read_vehicle_data()
-        
-        # Read GPS data
-        gps_data = self.gps.read()
-        
-        # Get Bluetooth media status
-        media_status = self.bluetooth.get_status()
-        
-        # Compile complete telemetry packet
-        telemetry = {
-            'type': 'telemetry',
-            'timestamp': datetime.now().isoformat(),
+        try:
+            # Read DHT11 sensor with error handling
+            try:
+                dht_data = self.dht_sensor.read()
+            except Exception as e:
+                logger.error(f"⚠ Error reading DHT sensor: {e}")
+                dht_data = {'temperature': None, 'humidity': None}
             
-            # Environmental sensors
+            # Read vehicle data from CAN bus (currently mock)
+            try:
+                vehicle_data = self.can_bus.read_vehicle_data()
+            except Exception as e:
+                logger.error(f"⚠ Error reading CAN bus: {e}")
+                vehicle_data = {
+                    'speed': 0.0, 'battery_soc': 0.0, 'battery_voltage': 0.0,
+                    'battery_current': 0.0, 'motor_rpm': 0, 'motor_temp': 0.0,
+                    'range_km': 0.0, 'power_kw': 0.0
+                }
+            
+            # Read GPS data
+            try:
+                gps_data = self.gps.read()
+            except Exception as e:
+                logger.error(f"⚠ Error reading GPS: {e}")
+                gps_data = {
+                    'latitude': 28.4595, 'longitude': 77.0266, 'heading': 0.0,
+                    'altitude': 240.0, 'satellites': 0, 'speed_gps': 0.0
+                }
+            
+            # Get Bluetooth media status
+            try:
+                media_status = self.bluetooth.get_status()
+            except Exception as e:
+                logger.error(f"⚠ Error reading Bluetooth status: {e}")
+                media_status = {
+                    'connected': False, 'device_name': 'Error',
+                    'track_title': 'No Track Playing', 'track_artist': 'Unknown Artist',
+                    'duration': 0, 'position': 0, 'is_playing': False
+                }
+            
+            # Read parking/cabin composite module
+            try:
+                parking_data = self.parking_module.read()
+            except Exception as e:
+                logger.error(f"⚠ Error reading parking module: {e}")
+                parking_data = {
+                    'reverse_engaged': False, 'motion_detected': False,
+                    'distance_cm': None, 'proximity_warning': None,
+                    'temperature_c': None, 'humidity_pct': None
+                }
+
+            # Derive cabin environment from parking module (temperature/humidity)
+            cabin_temp = parking_data.get('temperature_c')
+            cabin_humidity = parking_data.get('humidity_pct')
+
+            # Compile complete telemetry packet
+            telemetry = {
+                'type': 'telemetry',
+                'timestamp': datetime.now().isoformat(),
+            
+            # Environmental sensors (prefer parking module DHT, fallback to legacy dht_sensor)
             'ambient_temp': dht_data['temperature'],
             'humidity': dht_data['humidity'],
-            'cabin_temp': dht_data['temperature'] - 3 if dht_data['temperature'] else None,  # Mock cabin temp
+            'cabin': {
+                'temperature_c': cabin_temp if cabin_temp is not None else (dht_data['temperature'] - 2 if dht_data['temperature'] else None),
+                'humidity_pct': cabin_humidity if cabin_humidity is not None else dht_data['humidity'],
+            },
             
             # Vehicle dynamics
             'speed': vehicle_data['speed'],
@@ -653,6 +851,7 @@ class EVBackendServer:
                 'latitude': gps_data['latitude'],
                 'longitude': gps_data['longitude'],
                 'altitude': gps_data['altitude'],
+                'heading': gps_data.get('heading'),
                 'satellites': gps_data['satellites'],
                 'speed_gps': gps_data['speed_gps']
             },
@@ -672,12 +871,49 @@ class EVBackendServer:
             
             # Media player
             'media': media_status,
+
+            # Parking & reverse assist
+            'parking': {
+                'reverse_engaged': parking_data['reverse_engaged'],
+                'motion_detected': parking_data['motion_detected'],
+                'distance_cm': parking_data['distance_cm'],
+                'proximity_warning': parking_data['proximity_warning'],
+            },
             
-            # Settings
-            'settings': self.settings
-        }
+                # Settings
+                'settings': self.settings
+            }
+            
+            return telemetry
         
-        return telemetry
+        except Exception as e:
+            logger.error(f"⚠ Critical error collecting telemetry: {e}")
+            # Return minimal safe telemetry
+            return {
+                'type': 'telemetry',
+                'timestamp': datetime.now().isoformat(),
+                'ambient_temp': None,
+                'humidity': None,
+                'cabin': {'temperature_c': None, 'humidity_pct': None},
+                'speed': 0.0,
+                'range_km': 0.0,
+                'battery_soc': 0.0,
+                'battery_voltage': 0.0,
+                'battery_current': 0.0,
+                'battery_soh': 0.0,
+                'motor_rpm': 0,
+                'motor_temp': 0.0,
+                'power_kw': 0.0,
+                'efficiency_score': 0.0,
+                'wheel_speed': 0.0,
+                'gps': {'latitude': 28.4595, 'longitude': 77.0266, 'altitude': 240.0, 'heading': 0.0, 'satellites': 0, 'speed_gps': 0.0},
+                'tire_pressure': {'front_left': 0, 'front_right': 0, 'rear_left': 0, 'rear_right': 0},
+                'battery_cells': {'block_a': 0, 'block_b': 0, 'block_c': 0},
+                'connectivity': {'wifi': False, 'bluetooth': False, 'can_bus': False},
+                'media': {'connected': False, 'device_name': 'Error', 'track_title': 'No Track Playing', 'track_artist': 'Unknown Artist', 'duration': 0, 'position': 0, 'is_playing': False},
+                'parking': {'reverse_engaged': False, 'motion_detected': False, 'distance_cm': None, 'proximity_warning': None},
+                'settings': self.settings
+            }
 
 
 # ============================================================================
@@ -686,19 +922,30 @@ class EVBackendServer:
 
 async def main():
     """Main entry point"""
-    logger.info("=" * 60)
-    logger.info("EV Smart Screen - Backend Server")
-    logger.info("Phase 1 Prototype")
-    logger.info("=" * 60)
-    logger.info(f"Platform: {platform.system()} {platform.machine()}")
-    logger.info(f"Python: {platform.python_version()}")
-    logger.info(f"Running on Raspberry Pi: {IS_RPI}")
-    logger.info(f"Hardware Available: {HARDWARE_AVAILABLE}")
-    logger.info("=" * 60)
-    
-    # Create and start server
-    server = EVBackendServer()
-    await server.start(host='0.0.0.0', port=8765)
+    try:
+        logger.info("=" * 60)
+        logger.info("EV Smart Screen - Backend Server")
+        logger.info("Phase 1 Prototype")
+        logger.info("=" * 60)
+        logger.info(f"Platform: {platform.system()} {platform.machine()}")
+        logger.info(f"Python: {platform.python_version()}")
+        logger.info(f"Running on Raspberry Pi: {IS_RPI}")
+        logger.info(f"Hardware Available: {HARDWARE_AVAILABLE}")
+        logger.info("=" * 60)
+        
+        # Create and start server
+        server = EVBackendServer()
+        await server.start(host='0.0.0.0', port=8765)
+        
+    except KeyboardInterrupt:
+        logger.info("\n✓ Server stopped by user")
+    except OSError as e:
+        logger.error(f"\n⚠ Server failed to start (port may be in use): {e}")
+        logger.error("→ Try closing other instances or using a different port")
+    except Exception as e:
+        logger.error(f"\n⚠ Fatal error: {e}")
+        import traceback
+        traceback.print_exc()
 
 
 if __name__ == '__main__':
