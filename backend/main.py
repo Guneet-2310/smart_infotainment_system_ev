@@ -55,54 +55,9 @@ else:
     HARDWARE_AVAILABLE = False
 
 
-class DHT11Sensor:
-    """DHT11 Temperature and Humidity Sensor Interface"""
-    
-    def __init__(self):
-        if IS_RPI and HARDWARE_AVAILABLE:
-            try:
-                # DHT11 connected to GPIO pin 4 (BCM numbering)
-                self.sensor = adafruit_dht.DHT11(board.D4)
-                logger.info("DHT11 sensor initialized on GPIO4")
-            except Exception as e:
-                logger.error(f"Failed to initialize DHT11 sensor: {e}")
-                self.sensor = None
-        else:
-            self.sensor = None
-            logger.info("DHT11 sensor: Using mock data")
-    
-    def read(self) -> Dict[str, Optional[float]]:
-        """Read temperature and humidity from sensor"""
-        if self.sensor:
-            try:
-                temperature = self.sensor.temperature
-                humidity = self.sensor.humidity
-                if temperature is not None and humidity is not None:
-                    return {
-                        'temperature': round(temperature, 1),
-                        'humidity': round(humidity, 1)
-                    }
-                else:
-                    logger.warning("DHT11 sensor returned None values")
-                    return {'temperature': None, 'humidity': None}
-            except RuntimeError as e:
-                # DHT sensors can occasionally fail to read
-                logger.warning(f"Failed to read DHT11 sensor: {e}")
-                return {'temperature': None, 'humidity': None}
-            except Exception as e:
-                # Catch any other sensor errors
-                logger.error(f"⚠ DHT11 sensor critical error: {e}")
-                return {'temperature': None, 'humidity': None}
-        else:
-            # Mock data for testing
-            try:
-                return {
-                    'temperature': round(random.uniform(20.0, 30.0), 1),
-                    'humidity': round(random.uniform(40.0, 60.0), 1)
-                }
-            except Exception as e:
-                logger.error(f"⚠ Mock data generation error: {e}")
-                return {'temperature': None, 'humidity': None}
+## Removed standalone DHT11Sensor class.
+## Rationale: We now use the unified DHT access inside parking_module.ParkingAndCabinModule
+## to avoid double reads and checksum/buffer errors caused by over-sampling.
 
 
 class CANBusInterface:
@@ -462,8 +417,7 @@ class EVBackendServer:
     """Main EV Infotainment Backend Server"""
     
     def __init__(self):
-        # Hardware interfaces
-        self.dht_sensor = DHT11Sensor()
+        # Hardware interfaces (DHT handled inside parking_module to prevent duplicate sampling)
         self.can_bus = CANBusInterface()
         self.gps = GPSModule()
         self.bluetooth = BluetoothMediaController()
@@ -819,9 +773,9 @@ class EVBackendServer:
                 'type': 'telemetry',
                 'timestamp': datetime.now().isoformat(),
             
-            # Environmental sensors (prefer parking module DHT, fallback to legacy dht_sensor)
-            'ambient_temp': dht_data['temperature'],
-            'humidity': dht_data['humidity'],
+            # Environmental sensors sourced from parking module unified DHT (cached)
+            'ambient_temp': cabin_temp,
+            'humidity': cabin_humidity,
             'cabin': {
                 'temperature_c': cabin_temp if cabin_temp is not None else (dht_data['temperature'] - 2 if dht_data['temperature'] else None),
                 'humidity_pct': cabin_humidity if cabin_humidity is not None else dht_data['humidity'],

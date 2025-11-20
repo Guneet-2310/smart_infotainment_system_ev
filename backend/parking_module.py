@@ -44,6 +44,10 @@ class ParkingAndCabinModule:
         self._last_mock_tick = time.time()
         self._mock_phase = 0
         self._using_real = False
+        # DHT11 cached values to avoid over-sampling (Adafruit lib requires ~2s between reads)
+        self._dht_last_read_ts: float = 0.0
+        self._dht_cached_temp: Optional[float] = None
+        self._dht_cached_hum: Optional[float] = None
 
         if IS_RPI:
             try:
@@ -61,6 +65,7 @@ class ParkingAndCabinModule:
                 self.ECHO = 6
                 self.BUTTON = 22  # reverse gear
                 self.PIR = 27
+                # Physical DHT11 wiring pin (using D17 as per tested working script)
                 self.DHT_PIN = board.D17
 
                 self.GPIO.setup(self.TRIG, self.GPIO.OUT)
@@ -111,17 +116,47 @@ class ParkingAndCabinModule:
             return None
 
     def _read_dht(self) -> Tuple[Optional[float], Optional[float]]:
+        """Return (temperature, humidity) with caching & retry.
+
+        The Adafruit DHT library can intermittently fail; also it requires
+        at least ~2 seconds between successful reads. We therefore:
+          - Serve cached values if last read < 2.5s ago.
+          - Attempt up to 3 fresh reads when stale.
+          - On repeated failure keep prior cached values (do not overwrite
+            with None unless we never had a good sample).
+        """
         if not self._using_real:
-            return (None, None)
-        try:
-            temp = self.dht.temperature
-            hum = self.dht.humidity
-            return (float(temp) if temp is not None else None,
-                    float(hum) if hum is not None else None)
-        except Exception as e:
-            # DHT11 sensor fault - return None instead of crashing
-            print(f"⚠ DHT11 sensor error: {e}")
-            return (None, None)
+            return (self._dht_cached_temp, self._dht_cached_hum)
+
+        now = time.time()
+        # If cache is fresh, return it directly
+        if now - self._dht_last_read_ts < 2.5 and self._dht_cached_temp is not None and self._dht_cached_hum is not None:
+            return (self._dht_cached_temp, self._dht_cached_hum)
+
+        attempt = 0
+        fresh_temp: Optional[float] = None
+        fresh_hum: Optional[float] = None
+        while attempt < 3:
+            try:
+                temp = self.dht.temperature
+                hum = self.dht.humidity
+                if temp is not None and hum is not None:
+                    fresh_temp = float(temp)
+                    fresh_hum = float(hum)
+                    break
+            except Exception as e:
+                print(f"⚠ DHT11 sensor read attempt {attempt+1} failed: {e}")
+            attempt += 1
+            time.sleep(0.4)  # short backoff between retries
+
+        if fresh_temp is not None and fresh_hum is not None:
+            self._dht_cached_temp = round(fresh_temp, 1)
+            self._dht_cached_hum = round(fresh_hum, 1)
+            self._dht_last_read_ts = now
+        else:
+            # Keep old cached values; if none existed return (None, None)
+            print("⚠ Using cached/None DHT values after retries")
+        return (self._dht_cached_temp, self._dht_cached_hum)
 
     def _read_gpio_bool(self, pin: int) -> bool:
         if not self._using_real:
