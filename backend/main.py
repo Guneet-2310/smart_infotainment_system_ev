@@ -727,8 +727,10 @@ class EVBackendServer:
                 parking_data = {
                     'reverse_engaged': False,
                     'motion_detected': False,
-                    'distance_cm': None,
-                    'proximity_warning': None,
+                    'rear_left_distance_cm': None,
+                    'rear_right_distance_cm': None,
+                    'rear_left_warning': None,
+                    'rear_right_warning': None,
                     'temperature_c': None,
                     'humidity_pct': None,
                 }
@@ -832,8 +834,10 @@ class EVBackendServer:
             'parking': {
                 'reverse_engaged': parking_data['reverse_engaged'],
                 'motion_detected': parking_data['motion_detected'],
-                'distance_cm': parking_data['distance_cm'],
-                'proximity_warning': parking_data['proximity_warning'],
+                'rear_left_distance_cm': parking_data.get('rear_left_distance_cm'),
+                'rear_right_distance_cm': parking_data.get('rear_right_distance_cm'),
+                'rear_left_warning': parking_data.get('rear_left_warning'),
+                'rear_right_warning': parking_data.get('rear_right_warning'),
             },
             
                 # Settings
@@ -867,7 +871,7 @@ class EVBackendServer:
                 'battery_cells': {'block_a': 0, 'block_b': 0, 'block_c': 0},
                 'connectivity': {'wifi': False, 'bluetooth': False, 'can_bus': False},
                 'media': {'connected': False, 'device_name': 'Error', 'track_title': 'No Track Playing', 'track_artist': 'Unknown Artist', 'duration': 0, 'position': 0, 'is_playing': False},
-                'parking': {'reverse_engaged': False, 'motion_detected': False, 'distance_cm': None, 'proximity_warning': None},
+                'parking': {'reverse_engaged': False, 'motion_detected': False, 'rear_left_distance_cm': None, 'rear_right_distance_cm': None, 'rear_left_warning': None, 'rear_right_warning': None},
                 'settings': self.settings
             }
 

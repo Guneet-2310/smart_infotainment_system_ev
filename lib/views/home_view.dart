@@ -486,10 +486,8 @@ class _HomeViewState extends State<HomeView> {
 
   Widget _buildCabinRow() {
     final cabin = _telemetry['cabin'] ?? {};
-    final parking = _telemetry['parking'] ?? {};
     final temp = (cabin['temperature_c'] ?? _telemetry['ambient_temp'])?.toStringAsFixed(1) ?? '--';
     final hum = (cabin['humidity_pct'] ?? _telemetry['humidity'])?.toStringAsFixed(0) ?? '--';
-    final motion = parking['motion_detected'] == true;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
@@ -502,11 +500,6 @@ class _HomeViewState extends State<HomeView> {
         children: [
           _CompactMetricItem(value: temp, unit: '°C', label: 'Cabin'),
           _CompactMetricItem(value: hum, unit: '%', label: 'Humidity'),
-          _CompactMetricItem(
-            value: motion ? 'MOT' : '—',
-            label: 'Rear Motion',
-            iconColor: motion ? Colors.purpleAccent : Colors.white54,
-          ),
         ],
       ),
     );
@@ -784,138 +777,215 @@ class _HomeViewState extends State<HomeView> {
 
   Widget _buildReverseOverlay() {
     final parking = _telemetry['parking'] ?? {};
-    final distance = parking['distance_cm'];
-    final warning = parking['proximity_warning'];
     final motion = parking['motion_detected'] == true;
-    Color warnColor;
-    String warnText;
-    switch (warning) {
-      case 'high':
-        warnColor = Colors.redAccent;
-        warnText = 'OBJECT VERY CLOSE';
-        break;
-      case 'medium':
-        warnColor = Colors.orangeAccent;
-        warnText = 'OBJECT CLOSE';
-        break;
-      case 'low':
-        warnColor = Colors.yellowAccent;
-        warnText = 'OBJECT NEARBY';
-        break;
-      case 'clear':
-        warnColor = Colors.greenAccent;
-        warnText = 'AREA CLEAR';
-        break;
-      default:
-        warnColor = Colors.grey;
-        warnText = 'IDLE';
-    }
+    
     return Container(
       decoration: BoxDecoration(
         color: Colors.black.withValues(alpha: 0.8),
         borderRadius: BorderRadius.circular(20),
       ),
       padding: const EdgeInsets.all(16),
-      child: Column(
+      child: Row(
         children: [
-          // Camera placeholder occupying ~75%
+          // Left side: Car diagram with 2 rear sensors (40%)
           Expanded(
-            flex: 3,
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.4),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.white24),
-              ),
-              alignment: Alignment.center,
-              child: const Text(
-                'REVERSE CAMERA FEED\n(placeholder)',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white54, fontSize: 16),
+            flex: 4,
+            child: _buildCarDiagramWithSensors(parking, motion),
+          ),
+          const SizedBox(width: 16),
+          // Right side: Camera placeholder (60% width, 3:1 aspect ratio)
+          Expanded(
+            flex: 6,
+            child: AspectRatio(
+              aspectRatio: 3 / 1,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.4),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.white24),
+                ),
+                alignment: Alignment.center,
+                child: const Text(
+                  'REVERSE CAMERA FEED\n(placeholder)',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.white54, fontSize: 16),
+                ),
               ),
             ),
           ),
-          const SizedBox(height: 16),
-          // Warning + stats
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCarDiagramWithSensors(Map<String, dynamic> parking, bool motion) {
+    // Extract rear sensor data
+    final rearLeftDist = parking['rear_left_distance_cm'];
+    final rearRightDist = parking['rear_right_distance_cm'];
+    final rearLeftWarn = parking['rear_left_warning'];
+    final rearRightWarn = parking['rear_right_warning'];
+    
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.4),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white24),
+      ),
+      child: Column(
+        children: [
+          // Title
+          const Text(
+            'REAR SENSORS',
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1.2,
+            ),
+          ),
+          const SizedBox(height: 12),
+          // Car icon
           Expanded(
-            flex: 1,
-            child: Row(
-              children: [
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: warnColor.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: warnColor, width: 1.5),
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          warnText,
-                          style: TextStyle(
-                            color: warnColor,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          distance != null ? '${distance.toStringAsFixed(1)} cm' : '—',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+            child: Center(
+              child: Icon(
+                Icons.directions_car,
+                color: Colors.white.withValues(alpha: 0.3),
+                size: 100,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          // Two rear sensors side by side
+          Row(
+            children: [
+              Expanded(
+                child: _buildSensorDisplay(
+                  label: 'REAR LEFT',
+                  distance: rearLeftDist,
+                  warning: rearLeftWarn,
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.35),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.white24),
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          motion ? Icons.directions_run : Icons.accessibility_new,
-                          color: motion ? Colors.purpleAccent : Colors.white54,
-                          size: 28,
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          motion ? 'MOTION DETECTED' : 'NO MOTION',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 14,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        ElevatedButton(
-                          onPressed: () {
-                            setState(() => _showReverseOverlay = false);
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.redAccent,
-                            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                          ),
-                          child: const Text('CLOSE'),
-                        ),
-                      ],
-                    ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildSensorDisplay(
+                  label: 'REAR RIGHT',
+                  distance: rearRightDist,
+                  warning: rearRightWarn,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Motion detection
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.3),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  motion ? Icons.directions_run : Icons.accessibility_new,
+                  color: motion ? Colors.purpleAccent : Colors.white54,
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  motion ? 'MOTION' : 'NO MOTION',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
                   ),
                 ),
               ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          // Close button
+          ElevatedButton(
+            onPressed: () {
+              setState(() => _showReverseOverlay = false);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+            ),
+            child: const Text('CLOSE'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSensorDisplay({
+    required String label,
+    required dynamic distance,
+    required dynamic warning,
+  }) {
+    Color warnColor;
+    String warnText;
+    
+    switch (warning) {
+      case 'high':
+        warnColor = Colors.redAccent;
+        warnText = 'CLOSE';
+        break;
+      case 'medium':
+        warnColor = Colors.orangeAccent;
+        warnText = 'NEAR';
+        break;
+      case 'low':
+        warnColor = Colors.yellowAccent;
+        warnText = 'ALERT';
+        break;
+      case 'clear':
+        warnColor = Colors.greenAccent;
+        warnText = 'CLEAR';
+        break;
+      default:
+        warnColor = Colors.grey;
+        warnText = '—';
+    }
+    
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: warnColor.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: warnColor, width: 1.5),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              color: warnColor,
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            distance != null ? '${distance.toStringAsFixed(1)}cm' : '—',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            warnText,
+            style: TextStyle(
+              color: warnColor,
+              fontSize: 11,
             ),
           ),
         ],

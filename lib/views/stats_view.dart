@@ -215,10 +215,10 @@ class _StatsViewState extends State<StatsView> {
   /// 1. The main gauges for core metrics
   Widget _buildGaugesSection() {
     // Get real-time data from backend
-    final voltage = _telemetry['battery_voltage']?.toDouble() ?? 0;
-    final rpm = _telemetry['motor_rpm']?.toDouble() ?? 0;
-    final ambientTemp = _telemetry['ambient_temp']?.toDouble() ?? 0;
-    final cabinTemp = _telemetry['cabin_temp']?.toDouble() ?? 0;
+    final voltage = (_telemetry['battery_voltage'] as num?)?.toDouble() ?? 0.0;
+    final rpm = (_telemetry['motor_rpm'] as num?)?.toDouble() ?? 0.0;
+    final ambientTemp = (_telemetry['ambient_temp'] as num?)?.toDouble() ?? 0.0;
+    final cabinTemp = (_telemetry['cabin_temp'] as num?)?.toDouble() ?? 0.0;
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -227,20 +227,20 @@ class _StatsViewState extends State<StatsView> {
           title: 'Battery Voltage',
           value: voltage,
           unit: 'V',
-          max: 500,
+          max: 500.0,
         ),
-        _metricGauge(title: 'Motor RPM', value: rpm, unit: 'RPM', max: 8000),
+        _metricGauge(title: 'Motor RPM', value: rpm, unit: 'RPM', max: 8000.0),
         _metricGauge(
           title: 'Ambient Temp',
           value: ambientTemp,
           unit: '°C',
-          max: 50,
+          max: 50.0,
         ),
         _metricGauge(
           title: 'Cabin Temp',
           value: cabinTemp,
           unit: '°C',
-          max: 30,
+          max: 30.0,
         ),
       ],
     );
@@ -287,8 +287,9 @@ class _StatsViewState extends State<StatsView> {
                 DataCell(Text('Front Left', style: cellStyle)),
                 DataCell(
                   Text(
-                    (_telemetry['tire_pressure']?['front_left']
-                            ?.toStringAsFixed(1) ??
+                    ((_telemetry['tire_pressure']?['front_left'] as num?)
+                            ?.toDouble()
+                            .toStringAsFixed(1) ??
                         '0.0'),
                     style: cellStyle,
                   ),
@@ -300,8 +301,9 @@ class _StatsViewState extends State<StatsView> {
                 DataCell(Text('Front Right', style: cellStyle)),
                 DataCell(
                   Text(
-                    (_telemetry['tire_pressure']?['front_right']
-                            ?.toStringAsFixed(1) ??
+                    ((_telemetry['tire_pressure']?['front_right'] as num?)
+                            ?.toDouble()
+                            .toStringAsFixed(1) ??
                         '0.0'),
                     style: cellStyle,
                   ),
@@ -313,9 +315,9 @@ class _StatsViewState extends State<StatsView> {
                 DataCell(Text('Rear Left', style: cellStyle)),
                 DataCell(
                   Text(
-                    (_telemetry['tire_pressure']?['rear_left']?.toStringAsFixed(
-                          1,
-                        ) ??
+                    ((_telemetry['tire_pressure']?['rear_left'] as num?)
+                            ?.toDouble()
+                            .toStringAsFixed(1) ??
                         '0.0'),
                     style: cellStyle,
                   ),
@@ -327,8 +329,9 @@ class _StatsViewState extends State<StatsView> {
                 DataCell(Text('Rear Right', style: cellStyle)),
                 DataCell(
                   Text(
-                    (_telemetry['tire_pressure']?['rear_right']
-                            ?.toStringAsFixed(1) ??
+                    ((_telemetry['tire_pressure']?['rear_right'] as num?)
+                            ?.toDouble()
+                            .toStringAsFixed(1) ??
                         '0.0'),
                     style: cellStyle,
                   ),
@@ -352,9 +355,9 @@ class _StatsViewState extends State<StatsView> {
                 DataCell(Text('Block A (1-8)', style: cellStyle)),
                 DataCell(
                   Text(
-                    (_telemetry['battery_cells']?['block_a']?.toStringAsFixed(
-                          1,
-                        ) ??
+                    ((_telemetry['battery_cells']?['block_a'] as num?)
+                            ?.toDouble()
+                            .toStringAsFixed(1) ??
                         '0.0'),
                     style: cellStyle,
                   ),
@@ -366,9 +369,9 @@ class _StatsViewState extends State<StatsView> {
                 DataCell(Text('Block B (9-16)', style: cellStyle)),
                 DataCell(
                   Text(
-                    (_telemetry['battery_cells']?['block_b']?.toStringAsFixed(
-                          1,
-                        ) ??
+                    ((_telemetry['battery_cells']?['block_b'] as num?)
+                            ?.toDouble()
+                            .toStringAsFixed(1) ??
                         '0.0'),
                     style: cellStyle,
                   ),
@@ -380,9 +383,9 @@ class _StatsViewState extends State<StatsView> {
                 DataCell(Text('Block C (17-24)', style: cellStyle)),
                 DataCell(
                   Text(
-                    (_telemetry['battery_cells']?['block_c']?.toStringAsFixed(
-                          1,
-                        ) ??
+                    ((_telemetry['battery_cells']?['block_c'] as num?)
+                            ?.toDouble()
+                            .toStringAsFixed(1) ??
                         '0.0'),
                     style: cellStyle,
                   ),
@@ -400,9 +403,12 @@ class _StatsViewState extends State<StatsView> {
     // Get real-time GPS data from backend
     final gps = _telemetry['gps'] ?? {};
     final satellites = gps['satellites']?.toString() ?? '0';
-    final latitude = gps['latitude']?.toStringAsFixed(4) ?? '0.0000';
-    final longitude = gps['longitude']?.toStringAsFixed(4) ?? '0.0000';
-    final altitude = gps['altitude']?.toStringAsFixed(1) ?? '0.0';
+    final latitude =
+        (gps['latitude'] as num?)?.toDouble().toStringAsFixed(4) ?? '0.0000';
+    final longitude =
+        (gps['longitude'] as num?)?.toDouble().toStringAsFixed(4) ?? '0.0000';
+    final altitude =
+        (gps['altitude'] as num?)?.toDouble().toStringAsFixed(1) ?? '0.0';
     final canBusConnected = _telemetry['connectivity']?['can_bus'] ?? false;
 
     return Container(
@@ -625,7 +631,7 @@ class _StatsViewState extends State<StatsView> {
 
   /// Build analytics section with performance metrics
   Widget _buildAnalyticsSection() {
-    final batterySoc = _telemetry['battery_soc']?.toDouble() ?? 0.0;
+    final batterySoc = (_telemetry['battery_soc'] as num?)?.toDouble() ?? 0.0;
 
     return Container(
       padding: const EdgeInsets.all(20),
